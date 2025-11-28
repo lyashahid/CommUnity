@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Profile images - anyone can read, only owner can write
+    match /profile_images/{fileName} {
+      allow read: if true; // Allow anyone to read profile images
+      allow write: if request.auth != null && fileName.matches('profile_' + request.auth.uid + '_.*');
+      allow delete: if request.auth != null && fileName.matches('profile_' + request.auth.uid + '_.*');
+    }
+  }
+}
