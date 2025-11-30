@@ -14,7 +14,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { typography } from '../../theme/typography';
 
 interface AcceptRejectButtonProps {
@@ -34,9 +34,194 @@ const AcceptRejectButton: React.FC<AcceptRejectButtonProps> = ({
   userName = 'User',
   requestTitle = 'Help Request'
 }) => {
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [action, setAction] = useState<'accept' | 'reject'>('accept');
+
+  const styles = StyleSheet.create({
+    actionButtonsContainer: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.background.secondary,
+    },
+    acceptButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    rejectButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.status.error,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    buttonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.inverse,
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+    },
+    keyboardContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    modalContent: {
+      backgroundColor: colors.surface.card,
+      borderRadius: 20,
+      marginHorizontal: 20,
+      maxHeight: '80%',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.2,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      ...typography.h3,
+      color: colors.text.primary,
+      fontWeight: '600',
+    },
+    closeButton: {
+      padding: 4,
+    },
+    contentContainer: {
+      padding: 20,
+      alignItems: 'center',
+    },
+    requestInfo: {
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    requestTitle: {
+      ...typography.h3,
+      color: colors.text.primary,
+      fontWeight: '600',
+      textAlign: 'center',
+      marginBottom: 4,
+    },
+    requestFrom: {
+      ...typography.body,
+      color: colors.text.secondary,
+    },
+    actionIcon: {
+      marginBottom: 20,
+    },
+    actionDescription: {
+      ...typography.body,
+      color: colors.text.primary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    reasonInput: {
+      width: '100%',
+    },
+    reasonLabel: {
+      ...typography.body,
+      color: colors.text.primary,
+      fontWeight: '500',
+      marginBottom: 8,
+    },
+    reasonTextArea: {
+      backgroundColor: colors.background.secondary,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      ...typography.body,
+      color: colors.text.primary,
+      height: 80,
+      textAlignVertical: 'top',
+    },
+    characterCount: {
+      ...typography.caption,
+      color: colors.text.secondary,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+    },
+    cancelButton: {
+      backgroundColor: colors.background.secondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    acceptActionButton: {
+      backgroundColor: colors.primary,
+    },
+    rejectActionButton: {
+      backgroundColor: colors.status.error,
+    },
+    cancelButtonText: {
+      ...typography.body,
+      color: colors.text.primary,
+      fontWeight: '500',
+    },
+    submitButtonText: {
+      ...typography.body,
+      color: colors.text.inverse,
+      fontWeight: '600',
+    },
+  });
 
   const handleAccept = () => {
     setAction('accept');
@@ -203,189 +388,5 @@ const AcceptRejectButton: React.FC<AcceptRejectButtonProps> = ({
     </>
   );
 };
-
-const styles = StyleSheet.create({
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.background.secondary,
-  },
-  acceptButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  rejectButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.status.error,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  buttonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.inverse,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-  },
-  keyboardContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  modalContent: {
-    backgroundColor: colors.surface.card,
-    borderRadius: 20,
-    marginHorizontal: 20,
-    maxHeight: '80%',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    ...typography.h3,
-    color: colors.text.primary,
-    fontWeight: '600',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  contentContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  requestInfo: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  requestTitle: {
-    ...typography.h3,
-    color: colors.text.primary,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  requestFrom: {
-    ...typography.body,
-    color: colors.text.secondary,
-  },
-  actionIcon: {
-    marginBottom: 20,
-  },
-  actionDescription: {
-    ...typography.body,
-    color: colors.text.primary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  reasonInput: {
-    width: '100%',
-  },
-  reasonLabel: {
-    ...typography.body,
-    color: colors.text.primary,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  reasonTextArea: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    ...typography.body,
-    color: colors.text.primary,
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  characterCount: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  cancelButton: {
-    backgroundColor: colors.background.secondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  acceptActionButton: {
-    backgroundColor: colors.primary,
-  },
-  rejectActionButton: {
-    backgroundColor: colors.status.error,
-  },
-  cancelButtonText: {
-    ...typography.body,
-    color: colors.text.primary,
-    fontWeight: '500',
-  },
-  submitButtonText: {
-    ...typography.body,
-    color: colors.text.inverse,
-    fontWeight: '600',
-  },
-});
 
 export default AcceptRejectButton;

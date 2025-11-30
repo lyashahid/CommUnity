@@ -15,8 +15,10 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { typography } from '../../theme/typography';
+import { saveReviewAndUpdateProfiles } from '../../services/ratingService';
+import { auth } from '../../services/firebase';
 
 interface CompleteRequestButtonProps {
   onCompleteRequest: (ratingData: any) => void;
@@ -24,6 +26,10 @@ interface CompleteRequestButtonProps {
   userName?: string;
   visible?: boolean;
   onClose?: () => void;
+  requestId?: string;
+  requestTitle?: string;
+  helperId?: string;
+  chatId?: string;
 }
 
 const CompleteRequestButton: React.FC<CompleteRequestButtonProps> = ({ 
@@ -31,8 +37,13 @@ const CompleteRequestButton: React.FC<CompleteRequestButtonProps> = ({
   disabled = false,
   userName = 'Helper',
   visible = true,
-  onClose
+  onClose,
+  requestId,
+  requestTitle = 'Help Request',
+  helperId,
+  chatId
 }) => {
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
@@ -43,29 +54,252 @@ const CompleteRequestButton: React.FC<CompleteRequestButtonProps> = ({
     'Friendly', 'Patient', 'Good Communication'
   ];
 
-  const handleSubmitRating = () => {
+  const styles = StyleSheet.create({
+    completeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.success,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    disabledButton: {
+      backgroundColor: colors.text.secondary,
+      opacity: 0.6,
+    },
+    completeButtonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.inverse,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    keyboardContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.surface.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      flex: 1,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      ...typography.h2,
+      color: colors.text.primary,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    userInfo: {
+      alignItems: 'center',
+      padding: 24,
+    },
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.background.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    userName: {
+      ...typography.h3,
+      color: colors.text.primary,
+      marginBottom: 4,
+    },
+    ratingSubtitle: {
+      ...typography.body,
+      color: colors.text.secondary,
+    },
+    ratingSection: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    sectionTitle: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.primary,
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    starsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      marginVertical: 16,
+    },
+    starButton: {
+      padding: 4,
+    },
+    ratingLabel: {
+      ...typography.body,
+      color: colors.text.secondary,
+      textAlign: 'center',
+    },
+    tagsSection: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    tagsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    tag: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.background.secondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    selectedTag: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    tagText: {
+      ...typography.caption,
+      color: colors.text.secondary,
+      fontWeight: '500',
+    },
+    selectedTagText: {
+      color: colors.text.inverse,
+    },
+    feedbackSection: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    feedbackSubtitle: {
+      ...typography.caption,
+      color: colors.text.secondary,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    characterCount: {
+      ...typography.caption,
+      color: colors.text.secondary,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    feedbackInput: {
+      backgroundColor: colors.background.secondary,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      ...typography.body,
+      color: colors.text.primary,
+      height: 80,
+      textAlignVertical: 'top',
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 8,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+    },
+    cancelButton: {
+      backgroundColor: colors.background.secondary,
+    },
+    submitButton: {
+      backgroundColor: colors.success,
+    },
+    cancelButtonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.primary,
+    },
+    submitButtonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.inverse,
+    },
+  });
+
+  const handleSubmitRating = async () => {
     if (rating === 0) {
       Alert.alert('Rating Required', 'Please select a star rating before submitting.');
       return;
     }
 
-    const ratingData = {
-      rating,
-      feedback: feedback.trim(),
-      tags: selectedTags,
-      timestamp: new Date(),
-      userName,
-    };
+    if (!auth.currentUser || !helperId || !requestId) {
+      Alert.alert('Error', 'Missing required information for submitting review.');
+      return;
+    }
 
-    onCompleteRequest(ratingData);
-    
-    // Reset form and close modal
-    setRating(0);
-    setFeedback('');
-    setSelectedTags([]);
-    setModalVisible(false);
-    
-    Alert.alert('Thank You!', 'Your feedback has been submitted successfully.');
+    try {
+      const reviewData = {
+        rating,
+        comment: feedback.trim(),
+        tags: selectedTags,
+        reviewerName: auth.currentUser.displayName || 'Anonymous',
+        reviewerUid: auth.currentUser.uid,
+        revieweeName: userName,
+        revieweeUid: helperId,
+        requestTitle: requestTitle,
+        requestId: requestId,
+        chatId: chatId || `${auth.currentUser.uid}_${helperId}`,
+        createdAt: new Date(),
+      };
+
+      // Save review using ratingService
+      await saveReviewAndUpdateProfiles(reviewData);
+
+      // Call the original callback
+      onCompleteRequest(reviewData);
+      
+      // Reset form and close modal
+      setRating(0);
+      setFeedback('');
+      setSelectedTags([]);
+      setModalVisible(false);
+      
+      Alert.alert('Thank You!', 'Your feedback has been submitted successfully.');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', 'Unable to submit review. Please try again.');
+    }
   };
 
   const toggleTag = (tag: string) => {
@@ -244,208 +478,5 @@ const CompleteRequestButton: React.FC<CompleteRequestButtonProps> = ({
     </>
   );
 };
-
-const styles = StyleSheet.create({
-  completeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.success,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  disabledButton: {
-    backgroundColor: colors.text.secondary,
-    opacity: 0.6,
-  },
-  completeButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.inverse,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  keyboardContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.surface.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    ...typography.h2,
-    color: colors.text.primary,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  userInfo: {
-    alignItems: 'center',
-    padding: 24,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.background.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  userName: {
-    ...typography.h3,
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  ratingSubtitle: {
-    ...typography.body,
-    color: colors.text.secondary,
-  },
-  ratingSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginVertical: 16,
-  },
-  starButton: {
-    padding: 4,
-  },
-  ratingLabel: {
-    ...typography.body,
-    color: colors.text.secondary,
-    textAlign: 'center',
-  },
-  tagsSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.background.secondary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  selectedTag: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  tagText: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    fontWeight: '500',
-  },
-  selectedTagText: {
-    color: colors.text.inverse,
-  },
-  feedbackSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  feedbackSubtitle: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  characterCount: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  feedbackInput: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    ...typography.body,
-    color: colors.text.primary,
-    height: 80,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 8,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  cancelButton: {
-    backgroundColor: colors.background.secondary,
-  },
-  submitButton: {
-    backgroundColor: colors.success,
-  },
-  cancelButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  submitButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.inverse,
-  },
-});
 
 export default CompleteRequestButton;

@@ -60,7 +60,6 @@ The app features a comprehensive help request system with real-time chat, locati
 npm run setup-db
 ```
 
----
 
 ## Feature List
 
@@ -104,7 +103,6 @@ npm run setup-db
 - **Beautiful UI**: Modern, intuitive interface with smooth animations
 - **Push Notifications**: Real-time updates for request status changes
 
----
 
 ## Screenshots
 
@@ -151,7 +149,6 @@ npm run setup-db
 - Location picker
 - Duration estimation
 
----
 
 ## Technologies Used
 
@@ -193,8 +190,6 @@ npm run setup-db
 - **TypeScript** (v5.9.2) - Static type checking
 - **Babel** - JavaScript transpilation
 - **Metro** - React Native bundler
-
----
 
 ## Known Issues & Future Improvements
 

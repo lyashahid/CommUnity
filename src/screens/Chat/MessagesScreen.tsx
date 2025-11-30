@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  FlatList,
-  StyleSheet,
   TouchableOpacity,
-  TextInput,
-  Alert,
-  RefreshControl,
+  FlatList,
   Image,
-  Animated,
+  StyleSheet,
+  RefreshControl,
+  TextInput,
+  Modal,
+  Alert,
+  SafeAreaView
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { SwipeListView } from 'react-native-swipe-list-view';
-import { collection, query, where, onSnapshot, orderBy, limit, doc, getDocs, db, auth, deleteDoc, updateDoc, addDoc, serverTimestamp } from '@/services/firebase';
-import { useTheme } from '@/context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext';
+import { auth, db, collection, doc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, serverTimestamp, updateDoc, addDoc, deleteDoc } from '../../services/firebase';
 import { typography } from '../../theme/typography';
 
 type Chat = {
@@ -32,10 +33,12 @@ type Chat = {
 const MessagesScreen = ({ navigation }: { navigation: any }) => {
   const { colors } = useTheme();
   const [chats, setChats] = useState<Chat[]>([]);
+  const [recentUsers, setRecentUsers] = useState<{ uid: string; name: string; avatar?: string; lastChatTime: any }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
-  const [recentUsers, setRecentUsers] = useState<{ uid: string; name: string; avatar?: string; lastChatTime: any }[]>([]);
+  const [participantNames, setParticipantNames] = useState<{ [chatId: string]: { name: string; avatar?: string } }>({});
+  const [loading, setLoading] = useState(true);
 
   // Prevent rendering if colors are not available yet
   if (!colors) {
@@ -58,9 +61,8 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
     const unsubscribe = onSnapshot(chatsQuery, (snapshot) => {
       const chatsData = snapshot.docs.map(doc => {
         const data = doc.data();
-        // Ensure participants object exists and has proper structure
-        const participants = data.participants || {};
         const participantIds = data.participantIds || [];
+        const participants = data.participants || {};
         
         return {
           id: doc.id,
@@ -82,6 +84,12 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
       }) as Chat[];
       
       setChats(chatsData);
+      setLoading(false);
+      
+      // Load participant names for all chats
+      if (chatsData.length > 0) {
+        loadParticipantNames(chatsData);
+      }
 
       // Extract recent users from all chats (including deleted ones)
       const usersMap = new Map<string, { uid: string; name: string; avatar?: string; lastChatTime: any }>();
@@ -126,12 +134,124 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const getOtherParticipant = (chat: Chat) => {
+  // Helper function to load participant names for all chats
+  const loadParticipantNames = async (chats: Chat[]) => {
+    const names: { [chatId: string]: { name: string; avatar?: string } } = {};
+    
+    for (const chat of chats) {
+      const otherUserId = chat.participantIds.find(id => id !== currentUserId);
+      if (otherUserId) {
+        const participant = chat.participants[otherUserId];
+        
+        // If participant name is missing or invalid, fetch it
+        if (!participant || !participant.name || participant.name === 'Unknown User' || participant.name === 'undefined') {
+          console.log('Loading participant name for chat:', chat.id, 'user:', otherUserId);
+          const userProfile = await fetchUserProfile(otherUserId);
+          names[chat.id] = userProfile;
+          
+          // Update the chat document with ONLY the name (never update avatar to avoid undefined errors)
+          try {
+            const chatRef = doc(db, 'chats', chat.id);
+            await updateDoc(chatRef, {
+              [`participants.${otherUserId}.name`]: userProfile.name
+            });
+            console.log('Updated chat participant name:', chat.id, userProfile.name);
+          } catch (error) {
+            console.error('Error updating chat participant name:', error);
+          }
+        } else {
+          names[chat.id] = participant;
+        }
+      }
+    }
+    
+    setParticipantNames(names);
+  };
+
+  // Helper function to fetch user profile and get their name
+  const fetchUserProfile = async (userId: string): Promise<{ name: string; avatar?: string }> => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return {
+          name: userData.displayName || userData.name || 'User',
+          avatar: userData.photoURL || userData.avatar || undefined
+        };
+      }
+    } catch (error) {
+      console.warn('Could not fetch user profile:', userId, error);
+    }
+    return { name: 'User', avatar: undefined };
+  };
+
+  // Helper function to fix chat participant names
+  const fixChatParticipantNames = async (chat: Chat) => {
+    const needsUpdate: any = {};
+    let hasUpdates = false;
+
+    // Check each participant's name
+    for (const participantId of chat.participantIds) {
+      const participant = chat.participants[participantId];
+      if (!participant || !participant.name || participant.name === 'Unknown User' || participant.name === 'undefined') {
+        console.log('Fixing participant name for:', participantId);
+        const userProfile = await fetchUserProfile(participantId);
+        needsUpdate[`participants.${participantId}.name`] = userProfile.name;
+        if (userProfile.avatar) {
+          needsUpdate[`participants.${participantId}.avatar`] = userProfile.avatar;
+        }
+        hasUpdates = true;
+      }
+    }
+
+    // Update the chat document if needed
+    if (hasUpdates) {
+      try {
+        const chatRef = doc(db, 'chats', chat.id);
+        await updateDoc(chatRef, needsUpdate);
+        console.log('Updated chat participant names:', chat.id, needsUpdate);
+      } catch (error) {
+        console.error('Error updating chat participant names:', error);
+      }
+    }
+
+    return hasUpdates;
+  };
+
+  const getOtherParticipant = async (chat: Chat) => {
     const otherUserId = chat.participantIds.find(id => id !== currentUserId);
     if (!otherUserId) {
       return { name: 'Unknown User', avatar: undefined };
     }
-    return chat.participants[otherUserId] || { name: 'Unknown User', avatar: undefined };
+    
+    let participant = chat.participants[otherUserId];
+    
+    // If participant name is missing or invalid, try to fix it
+    if (!participant || !participant.name || participant.name === 'Unknown User' || participant.name === 'undefined') {
+      console.log('Missing participant name for:', otherUserId, 'fetching from profile...');
+      
+      // Fetch the user profile
+      const userProfile = await fetchUserProfile(otherUserId);
+      
+      // Update the chat document with the correct name
+      try {
+        const chatRef = doc(db, 'chats', chat.id);
+        await updateDoc(chatRef, {
+          [`participants.${otherUserId}.name`]: userProfile.name,
+          [`participants.${otherUserId}.avatar`]: userProfile.avatar
+        });
+        console.log('Updated chat with correct participant name:', userProfile.name);
+        
+        // Return the updated participant info
+        return userProfile;
+      } catch (error) {
+        console.error('Error updating participant name:', error);
+        return userProfile; // Return the fetched name even if update fails
+      }
+    }
+    
+    return participant;
   };
 
   const formatTime = (timestamp: any) => {
@@ -246,6 +366,18 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
     if (!currentUserId) return;
 
     try {
+      console.log('createNewChatWithUser:', { otherUserId, otherUserName, currentUserId });
+      
+      // Helper function to get current user's display name with fallbacks
+      const getCurrentUserDisplayName = () => {
+        const authUser = auth.currentUser;
+        if (!authUser) return 'User';
+        
+        return authUser.displayName || 
+               authUser.email?.split('@')[0] || 
+               'User';
+      };
+
       // Check if chat already exists
       const chatsQuery = query(
         collection(db, 'chats'),
@@ -264,21 +396,32 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
 
       if (existingChat) {
         // Navigate to existing chat
+        const otherUserIdFromChat = existingChat.participantIds.find(id => id !== currentUserId);
         navigation.navigate('Chat', { 
           chatId: existingChat.id,
+          otherUserId: otherUserIdFromChat,
           otherUserName: otherUserName
         });
       } else {
         // Create new chat
+        const currentUserDisplayName = getCurrentUserDisplayName();
+        const finalOtherUserName = otherUserName || 'Unknown User';
+        
+        console.log('Creating new chat with names:', {
+          currentUserDisplayName,
+          finalOtherUserName,
+          authDisplayName: auth.currentUser?.displayName
+        });
+        
         const newChat = {
           participantIds: [currentUserId, otherUserId],
           participants: {
             [currentUserId]: {
-              name: auth.currentUser?.displayName || 'User',
+              name: currentUserDisplayName || 'User',
               avatar: auth.currentUser?.photoURL
             },
             [otherUserId]: {
-              name: otherUserName,
+              name: finalOtherUserName,
               avatar: undefined
             }
           },
@@ -288,12 +431,22 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
           createdAt: serverTimestamp()
         };
 
+        // Final validation
+        if (!newChat.participants[currentUserId].name) {
+          newChat.participants[currentUserId].name = 'User';
+        }
+        if (!newChat.participants[otherUserId].name) {
+          newChat.participants[otherUserId].name = 'Unknown User';
+        }
+
+        console.log('Final chat document:', newChat);
         const docRef = await addDoc(collection(db, 'chats'), newChat);
         
         // Navigate to new chat
         navigation.navigate('Chat', { 
           chatId: docRef.id,
-          otherUserName: otherUserName
+          otherUserId: otherUserId,
+          otherUserName: finalOtherUserName
         });
       }
     } catch (error) {
@@ -345,26 +498,30 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const renderChatItem = ({ item }: { item: Chat }) => {
-    const otherParticipant = getOtherParticipant(item);
-    const otherParticipantName = otherParticipant?.name || 'Unknown User';
-    const otherParticipantAvatar = otherParticipant?.avatar;
+    // Use participant names from state, fallback to original data
+    const participantName = participantNames[item.id]?.name || 'Unknown User';
+    const participantAvatar = participantNames[item.id]?.avatar;
     const hasUnread = item.unreadCount > 0 && !item.isMuted;
+    
+    // Get the other user ID
+    const otherUserId = item.participantIds.find(id => id !== currentUserId);
 
     return (
       <TouchableOpacity
         style={[styles.chatItem, { backgroundColor: colors.surface.card, shadowColor: colors.shadow }]}
         onPress={() => navigation.navigate('Chat', { 
           chatId: item.id,
-          otherUserName: otherParticipantName
+          otherUserId: otherUserId,
+          otherUserName: participantName
         })}
       >
         <View style={styles.avatarContainer}>
-          {otherParticipantAvatar ? (
-            <Image source={{ uri: otherParticipantAvatar }} style={styles.avatar} />
+          {participantAvatar ? (
+            <Image source={{ uri: participantAvatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
               <Text style={[styles.avatarText, { color: colors.text.inverse }]}>
-                {otherParticipantName.charAt(0).toUpperCase()}
+                {participantName.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
@@ -379,7 +536,7 @@ const MessagesScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
             <Text style={[styles.name, hasUnread && styles.unreadName, { color: colors.text.primary }]}>
-              {otherParticipantName}
+              {participantName}
             </Text>
             <Text style={[styles.time, { color: colors.text.secondary }]}>
               {formatTime(item.lastMessageTime)}

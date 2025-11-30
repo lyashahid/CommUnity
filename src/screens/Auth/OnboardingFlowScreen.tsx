@@ -1,348 +1,274 @@
-// src/screens/OnboardingFlowScreen.tsx
 import React, { useState, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   Dimensions,
-  Animated,
-  FlatList
+  TouchableOpacity,
+  FlatList,
+  ViewToken,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { CommonActions } from '@react-navigation/native';
-import { RootStackParamList } from '@/navigation/AppNavigator';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/context/ThemeContext';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import LottieView from 'lottie-react-native';
+import { setOnboardingComplete } from '@/utils/onboarding';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type OnboardingFlowScreenNavigationProp = StackNavigationProp<RootStackParamList, 'OnboardingFlow'>;
-
-interface OnboardingFlowScreenProps {
-  navigation: OnboardingFlowScreenNavigationProp;
-}
-
-interface Slide {
+interface OnboardingItem {
   id: string;
   title: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  gradient: readonly [string, string];
+  subtitle: string;
+  animation: any;
 }
 
-const slides: Slide[] = [
+const onboardingData: OnboardingItem[] = [
   {
     id: '1',
-    title: "Ask for Help",
-    description: "Need assistance with groceries, moving furniture, or any task? Simply post a request and connect with helpful neighbors nearby.",
-    icon: "hand-right",
-    color: "#4A7C59",
-    gradient: ["#4A7C59", "#5A8D5A"] as const,
+    title: 'Welcome to CommUnity',
+    subtitle: 'Connect with the people around you. Share updates, get help, and stay active in your neighbourhood — all in one place.',
+    animation: require('@/assets/animations/onboard1.json'),
   },
   {
     id: '2',
-    title: "Share Your Skills",
-    description: "Whether you're great at fixing things, tutoring, cooking, or gardening - share your talents and make someone's day better.",
-    icon: "build",
-    color: "#8B7355",
-    gradient: ["#8B7355", "#A68968"] as const,
+    title: 'Request or Offer Help',
+    subtitle: 'Post what you need, offer support to others, or manage your tasks easily. Your community responds instantly.',
+    animation: require('@/assets/animations/onboard2.json'),
   },
   {
     id: '3',
-    title: "Build Community",
-    description: "Connect with people in your neighborhood, earn trust badges, help each other out, and create a stronger, happier community together.",
-    icon: "people",
-    color: "#4A7C59",
-    gradient: ["#4A7C59", "#5A8D5A"] as const,
+    title: 'Stay Updated in Real Time',
+    subtitle: 'See nearby posts, alerts, and activities around you. Everything important — right where you are.',
+    animation: require('@/assets/animations/onboard3.json'),
   },
-  {
-    id: '4',
-    title: "Stay Connected",
-    description: "Chat with community members, track your requests, see your impact, and build lasting relationships with those around you.",
-    icon: "chatbubbles",
-    color: "#6B8E6B",
-    gradient: ["#6B8E6B", "#5A8D5A"] as const,
-  }
 ];
 
-const OnboardingFlowScreen: React.FC<OnboardingFlowScreenProps> = ({ navigation }) => {
+interface OnboardingScreenProps {
+  onComplete?: () => void;
+}
+
+type OnboardingFlowRouteProp = RouteProp<{ OnboardingFlow: OnboardingScreenProps }, 'OnboardingFlow'>;
+
+export default function OnboardingScreen() {
+  const { colors } = useTheme();
+  const route = useRoute<OnboardingFlowRouteProp>();
+  const { onComplete } = route.params || {};
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
 
-  const handleNext = () => {
-    if (currentIndex < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
-    } else {
-      handleGetStarted();
-    }
-  };
+  console.log('OnboardingFlowScreen mounted with onComplete:', !!onComplete);
 
-  const handleSkip = () => {
-    handleGetStarted();
-  };
-
-  const handleGetStarted = () => {
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: 'App', params: { screen: 'Feed' } }],
-      })
-    );
-  };
-
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems && viewableItems.length > 0) {
+  const handleViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems[0]) {
       setCurrentIndex(viewableItems[0].index || 0);
     }
   }).current;
 
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50
+    itemVisiblePercentThreshold: 50,
   }).current;
 
-  const renderItem = ({ item, index }: { item: Slide; index: number }) => {
-    const inputRange = [
-      (index - 1) * width,
-      index * width,
-      (index + 1) * width
-    ];
+  const handleNext = () => {
+    if (currentIndex < onboardingData.length - 1) {
+      flatListRef.current?.scrollToIndex({
+        index: currentIndex + 1,
+        animated: true,
+      });
+    } else {
+      handleComplete();
+    }
+  };
 
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.8, 1, 0.8],
-      extrapolate: 'clamp'
-    });
+  const handleSkip = () => {
+    handleComplete();
+  };
 
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.3, 1, 0.3],
-      extrapolate: 'clamp'
-    });
+  const handleComplete = async () => {
+    console.log('Get Started button pressed - completing onboarding...');
+    try {
+      await setOnboardingComplete();
+      console.log('Onboarding status saved to AsyncStorage');
+      
+      if (onComplete) {
+        console.log('Calling onComplete callback...');
+        onComplete();
+      } else {
+        console.log('No onComplete callback provided');
+      }
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+    }
+  };
 
+  const renderItem = ({ item, index }: { item: OnboardingItem; index: number }) => {
     return (
-      <View style={[styles.slide, { width }]}>
-        <Animated.View style={[styles.content, { opacity, transform: [{ scale }] }]}>
-          <LinearGradient
-            colors={item.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.iconContainer}
-          >
-            <Ionicons name={item.icon} size={80} color="#FFFFFF" />
-          </LinearGradient>
-          
-          <Text style={[styles.title, { color: item.color }]}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
-        </Animated.View>
+      <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
+        <View style={styles.animationContainer}>
+          <LottieView
+            source={item.animation}
+            autoPlay
+            loop
+            style={styles.animation}
+          />
+        </View>
+        
+        <View style={styles.textContainer}>
+          <Text style={[styles.title, { color: colors.text.primary }]}>
+            {item.title}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
+            {item.subtitle}
+          </Text>
+        </View>
       </View>
     );
   };
 
-  const Pagination = () => {
+  const renderDots = () => {
     return (
-      <View style={styles.paginationContainer}>
-        {slides.map((_, index) => {
-          const inputRange = [
-            (index - 1) * width,
-            index * width,
-            (index + 1) * width
-          ];
-
-          const dotWidth = scrollX.interpolate({
-            inputRange,
-            outputRange: [8, 24, 8],
-            extrapolate: 'clamp'
-          });
-
-          const opacity = scrollX.interpolate({
-            inputRange,
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp'
-          });
-
-          return (
-            <Animated.View
-              key={index}
-              style={[
-                styles.dot,
-                {
-                  width: dotWidth,
-                  opacity,
-                  backgroundColor: slides[currentIndex].color
-                }
-              ]}
-            />
-          );
-        })}
+      <View style={styles.dotsContainer}>
+        {onboardingData.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.dot,
+              { 
+                backgroundColor: index === currentIndex ? colors.primary : colors.border,
+                width: index === currentIndex ? 24 : 8,
+              },
+            ]}
+          />
+        ))}
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       {/* Skip Button */}
-      {currentIndex < slides.length - 1 && (
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleSkip}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.skipButtonText}>Skip</Text>
+      {currentIndex < onboardingData.length - 1 && (
+        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+          <Text style={[styles.skipText, { color: colors.text.secondary }]}>
+            Skip
+          </Text>
         </TouchableOpacity>
       )}
 
-      {/* Slides */}
+      {/* FlatList */}
       <FlatList
         ref={flatListRef}
-        data={slides}
+        data={onboardingData}
         renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        bounces={false}
-        keyExtractor={(item) => item.id}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false }
-        )}
-        onViewableItemsChanged={onViewableItemsChanged}
+        onViewableItemsChanged={handleViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        scrollEventThrottle={16}
+        bounces={false}
       />
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Pagination />
+      {/* Bottom Section */}
+      <View style={styles.bottomContainer}>
+        {renderDots()}
 
         <TouchableOpacity
-          style={styles.nextButton}
+          style={[styles.button, { backgroundColor: colors.primary }]}
           onPress={handleNext}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={slides[currentIndex].gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.nextButtonGradient}
-          >
-            <Text style={styles.nextButtonText}>
-              {currentIndex === slides.length - 1 ? 'Get Started' : 'Next'}
-            </Text>
-            <Ionicons 
-              name={currentIndex === slides.length - 1 ? "checkmark-circle" : "arrow-forward"} 
-              size={24} 
-              color="white" 
-            />
-          </LinearGradient>
+          <Text style={styles.buttonText}>
+            {currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Next'}
+          </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.secondary,
   },
   skipButton: {
     position: 'absolute',
-    top: 20,
+    top: 50,
     right: 20,
     zIndex: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 10,
   },
-  skipButtonText: {
-    color: '#8B7355',
+  skipText: {
     fontSize: 16,
     fontWeight: '600',
   },
   slide: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  content: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 30,
   },
-  iconContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+  animationContainer: {
+    width: SCREEN_WIDTH * 0.8,
+    height: SCREEN_HEIGHT * 0.45,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 40,
-    shadowColor: '#4A7C59',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+  },
+  animation: {
+    width: '100%',
+    height: '100%',
+  },
+  textContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 16,
+    letterSpacing: 0.5,
   },
-  description: {
-    fontSize: 17,
-    color: '#666',
+  subtitle: {
+    fontSize: 16,
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 24,
     paddingHorizontal: 10,
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+  bottomContainer: {
+    paddingBottom: 50,
+    paddingHorizontal: 30,
   },
-  paginationContainer: {
+  dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 30,
+    height: 8,
   },
   dot: {
     height: 8,
     borderRadius: 4,
     marginHorizontal: 4,
   },
-  nextButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#4A7C59',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  nextButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  button: {
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  nextButtonText: {
-    color: 'white',
+  buttonText: {
+    color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '700',
-    marginRight: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
-
-export default OnboardingFlowScreen;

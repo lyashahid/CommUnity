@@ -4,7 +4,10 @@ service cloud.firestore {
     // Users can read any user profile but only update their own
     match /users/{userId} {
       allow read: if request.auth != null; // Any authenticated user can read user profiles
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Temporarily allow creation for seeding (remove this line after seeding)
+      allow create: if userId.matches('user[0-9]+'); // Allow user1, user2, etc for seeding
+      allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false;
     }
 
@@ -14,23 +17,67 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update: if request.auth != null && 
         (request.auth.uid == resource.data.ownerUid || 
-         request.auth.uid == request.resource.data.ownerUid);
-      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+         request.auth.uid == resource.data.requesterId ||
+         request.auth.uid == request.resource.data.ownerUid ||
+         request.auth.uid == request.resource.data.requesterId) ||
+        // Allow authenticated users to update specific fields when accepting a request
+        (request.resource.data.keys().hasAll(['status', 'helperUid', 'helperName', 'updatedAt']) &&
+         request.resource.data.status == 'in_progress' &&
+         request.resource.data.helperUid == request.auth.uid);
+      allow delete: if request.auth != null && 
+        (request.auth.uid == resource.data.ownerUid || 
+         request.auth.uid == resource.data.requesterId);
     }
 
     // Chats are only accessible to participants
     match /chats/{chatId} {
       allow read, create, update: if request.auth != null && 
         request.auth.uid in resource.data.participantIds;
+      // Temporarily allow creation for seeding (remove this line after seeding)
+      allow create: if true; // Allow unauthenticated creation for seeding
+      allow delete: if request.auth != null && 
+        request.auth.uid in resource.data.participantIds;
     }
 
-    // Messages can only be accessed by chat participants
-    match /messages/{messageId} {
+    // Chat messages subcollection - only accessible to chat participants
+    match /chats/{chatId}/messages/{messageId} {
       allow read: if request.auth != null && 
-        exists(/databases/$(database)/documents/chats/$(resource.data.chatId)) &&
-        request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.participantIds;
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       allow create: if request.auth != null && 
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds &&
         request.auth.uid == request.resource.data.senderId;
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == request.resource.data.senderId;
+    }
+
+    // Help requests can be read by anyone, created/updated by owners and helpers
+    match /requests/{requestId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      // Temporarily allow creation for seeding (remove this line after seeding)
+      allow create: if true; // Allow unauthenticated creation for seeding
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.requesterId || 
+         request.auth.uid == resource.data.helperUid ||
+         request.auth.uid == request.resource.data.requesterId ||
+         request.auth.uid == request.resource.data.helperUid) ||
+        // Allow authenticated users to update status when accepting/rejecting a request
+        (request.resource.data.keys().hasAll(['status', 'updatedAt']) &&
+         (request.resource.data.status == 'ongoing' || request.resource.data.status == 'rejected') &&
+         resource.data.status == 'pending' &&
+         resource.data.helperId == request.auth.uid) ||
+        // Allow helper to update additional fields when accepting
+        (request.resource.data.keys().hasAll(['status', 'acceptedAt', 'updatedAt']) &&
+         request.resource.data.status == 'ongoing' &&
+         resource.data.status == 'pending' &&
+         resource.data.helperId == request.auth.uid) ||
+        // Allow helper to reject requests
+        (request.resource.data.keys().hasAll(['status', 'rejectedAt', 'rejectedBy', 'updatedAt']) &&
+         request.resource.data.status == 'rejected' &&
+         resource.data.status == 'pending' &&
+         resource.data.helperId == request.auth.uid);
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.requesterId;
     }
 
     // Reviews can be read by anyone, created by authenticated users

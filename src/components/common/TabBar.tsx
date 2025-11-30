@@ -12,6 +12,11 @@ interface TabBarProps {
 export const TabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
   const { colors } = useTheme();
   
+  // Safety check - if colors is not available, return null
+  if (!colors) {
+    return null;
+  }
+  
   return (
     <View style={styles.container}>
       <View style={[styles.tabBackground, { backgroundColor: colors.surface.card }]}>

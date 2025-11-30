@@ -15,7 +15,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { typography } from '../../theme/typography';
 import DurationPicker from './DurationPicker';
 
@@ -39,6 +39,7 @@ const HelpRequestButton: React.FC<HelpRequestButtonProps> = ({
   onClose,
   recentRequest
 }) => {
+  const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [requestTitle, setRequestTitle] = useState(recentRequest?.title || '');
   const [requestDescription, setRequestDescription] = useState(recentRequest?.description || '');
@@ -50,8 +51,230 @@ const HelpRequestButton: React.FC<HelpRequestButtonProps> = ({
     if (recentRequest) {
       setRequestTitle(recentRequest.title);
       setRequestDescription(recentRequest.description);
+      setDuration(24);
     }
   }, [recentRequest]);
+
+  const styles = StyleSheet.create({
+    requestButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    disabledButton: {
+      backgroundColor: colors.text.secondary,
+      opacity: 0.6,
+    },
+    requestButtonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.inverse,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    keyboardContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.surface.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      flex: 1,
+    },
+    scrollContent: {
+      flex: 1,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      ...typography.h2,
+      color: colors.text.primary,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    formContainer: {
+      padding: 20,
+    },
+    recentRequestIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.primary + '10',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+    },
+    recentRequestText: {
+      ...typography.caption,
+      color: colors.primary,
+      fontWeight: '500',
+      fontSize: 12,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    inputLabel: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.primary,
+      marginBottom: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      ...typography.body,
+      color: colors.text.primary,
+      backgroundColor: colors.background.primary,
+    },
+    textArea: {
+      height: 120,
+      textAlignVertical: 'top',
+    },
+    characterCount: {
+      ...typography.caption,
+      color: colors.text.secondary,
+      textAlign: 'right',
+      marginTop: 4,
+    },
+    durationInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.background.secondary,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 8,
+    },
+    durationInputText: {
+      ...typography.body,
+      color: colors.text.primary,
+      fontWeight: '500',
+    },
+    durationHelperText: {
+      ...typography.caption,
+      color: colors.text.secondary,
+      marginTop: 8,
+      fontSize: 11,
+    },
+    // Preview section styles
+    previewSection: {
+      marginTop: 20,
+      marginBottom: 20,
+    },
+    previewTitle: {
+      ...typography.body,
+      color: colors.text.primary,
+      fontWeight: '600',
+      marginBottom: 12,
+    },
+    previewCard: {
+      backgroundColor: colors.primary + '08',
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.primary + '25',
+    },
+    previewTitleText: {
+      ...typography.h3,
+      color: colors.primary,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    previewDescriptionText: {
+      ...typography.body,
+      color: colors.text.primary,
+      lineHeight: 20,
+      marginBottom: 12,
+    },
+    previewMeta: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    previewDuration: {
+      ...typography.caption,
+      color: colors.primary,
+      fontWeight: '500',
+    },
+    previewType: {
+      ...typography.caption,
+      color: colors.primary,
+      fontWeight: '600',
+      backgroundColor: colors.primary + '20',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+    },
+    cancelButton: {
+      backgroundColor: colors.background.secondary,
+    },
+    sendButton: {
+      backgroundColor: colors.primary,
+    },
+    cancelButtonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.primary,
+    },
+    sendButtonText: {
+      ...typography.body,
+      fontWeight: '600',
+      color: colors.text.inverse,
+    },
+  });
 
   const handleSendRequest = () => {
     if (!requestTitle.trim() || !requestDescription.trim()) {
@@ -267,226 +490,5 @@ const HelpRequestButton: React.FC<HelpRequestButtonProps> = ({
     </>
   );
 };
-
-const styles = StyleSheet.create({
-  requestButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  disabledButton: {
-    backgroundColor: colors.text.secondary,
-    opacity: 0.6,
-  },
-  requestButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.inverse,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  keyboardContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.surface.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    flex: 1,
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    ...typography.h2,
-    color: colors.text.primary,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  formContainer: {
-    padding: 20,
-  },
-  recentRequestIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.primary + '10',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-  },
-  recentRequestText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '500',
-    fontSize: 12,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    ...typography.body,
-    color: colors.text.primary,
-    backgroundColor: colors.background.primary,
-  },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  characterCount: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  durationInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.background.secondary,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 8,
-  },
-  durationInputText: {
-    ...typography.body,
-    color: colors.text.primary,
-    fontWeight: '500',
-  },
-  durationHelperText: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    marginTop: 8,
-    fontSize: 11,
-  },
-  // Preview section styles
-  previewSection: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  previewTitle: {
-    ...typography.body,
-    color: colors.text.primary,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  previewCard: {
-    backgroundColor: colors.primary + '08',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.primary + '25',
-  },
-  previewTitleText: {
-    ...typography.h3,
-    color: colors.primary,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  previewDescriptionText: {
-    ...typography.body,
-    color: colors.text.primary,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  previewMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  previewDuration: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  previewType: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  cancelButton: {
-    backgroundColor: colors.background.secondary,
-  },
-  sendButton: {
-    backgroundColor: colors.primary,
-  },
-  cancelButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  sendButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.text.inverse,
-  },
-});
 
 export default HelpRequestButton;

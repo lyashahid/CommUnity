@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -48,7 +48,7 @@ type UserProfile = {
   avatar?: string;
   bio?: string;
   skills: string[];
-  location?: string;
+  location?: string | { longitude: number; latitude: number; address: string };
   joinDate: string;
   level: number;
   rating: number;
@@ -66,6 +66,8 @@ const ProfileScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [dominantColors, setDominantColors] = useState<{ primary: string; secondary: string } | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const profileLoadedRef = useRef(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -112,8 +114,22 @@ const ProfileScreen = () => {
     ]).start();
   };
 
-  const fetchProfileData = async () => {
+  const formatLocation = (location: string | { longitude: number; latitude: number; address: string } | undefined): string => {
+    if (!location) return 'Add your location';
+    if (typeof location === 'string') return location;
+    return location.address || 'Add your location';
+  };
+
+  const fetchProfileData = useCallback(async (forceRefresh = false) => {
     if (!currentUser) return;
+    
+    console.log('fetchProfileData called, forceRefresh:', forceRefresh, 'profileLoadedRef.current:', profileLoadedRef.current);
+    
+    // Prevent unnecessary re-fetches if data is already loaded and not forcing refresh
+    if (!forceRefresh && profileLoadedRef.current) {
+      console.log('Profile data already loaded, skipping fetch');
+      return;
+    }
     
     try {
       console.log('Fetching profile data for user:', currentUser.uid);
@@ -128,7 +144,9 @@ const ProfileScreen = () => {
           avatar: userData.photoURL || currentUser.photoURL || undefined,
           bio: userData.bio || 'Share a bit about yourself and how you like to help others.',
           skills: userData.skills || [],
-          location: userData.location || 'Add your location',
+          location: typeof userData.location === 'string' 
+            ? userData.location 
+            : userData.location?.address || 'Add your location',
           joinDate: userData.createdAt ? new Date(userData.createdAt).getFullYear().toString() : '2024',
           level: userData.level || 1,
           rating: userData.rating || 0,
@@ -138,6 +156,8 @@ const ProfileScreen = () => {
           responseRate: userData.responseRate || 0,
         };
         setProfile(profileData);
+        setHasLoaded(true);
+        profileLoadedRef.current = true;
         
         // Set color palette based on user name
         const palette = getColorPalette(profileData.name);
@@ -181,6 +201,8 @@ const ProfileScreen = () => {
         });
         
         setProfile(defaultProfile);
+        setHasLoaded(true);
+        profileLoadedRef.current = true;
         animateIn();
       }
     } catch (error: any) {
@@ -197,17 +219,27 @@ const ProfileScreen = () => {
         Alert.alert('Error', 'Failed to load profile. Please try again.');
       }
     }
-  };
+  }, [currentUser]);
 
-  useFocusEffect(
-    React.useCallback(() => {
+  useEffect(() => {
+    console.log('useEffect triggered, currentUser:', currentUser?.uid, 'profileLoadedRef.current:', profileLoadedRef.current);
+    if (!profileLoadedRef.current) {
       fetchProfileData();
-    }, [currentUser])
-  );
+    }
+  }, [currentUser, fetchProfileData]);
+
+  // Listen for route parameter changes (e.g., when returning from EditProfile)
+  useEffect(() => {
+    console.log('Route params effect triggered, route.params:', route.params);
+    if (route.params?.updated) {
+      profileLoadedRef.current = false; // Reset to allow refresh
+      fetchProfileData(true); // Force refresh when profile was updated
+    }
+  }, [route.params?.updated, fetchProfileData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchProfileData();
+    await fetchProfileData(true); // Force refresh
     setTimeout(() => setRefreshing(false), 1000);
   };
 
@@ -299,7 +331,7 @@ const ProfileScreen = () => {
 
   if (!profile) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.accent }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.accent }]} edges={['left', 'right']}>
         <View style={[styles.loadingContainer, { backgroundColor: colors.background.accent }]}>
           <Ionicons name="person-circle-outline" size={64} color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.text.secondary }]}>Loading your profile...</Text>
@@ -309,7 +341,7 @@ const ProfileScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.accent }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.accent }]} edges={['left', 'right']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -369,7 +401,7 @@ const ProfileScreen = () => {
 
             <View style={styles.locationSection}>
               <Ionicons name="location" size={14} color="#FFFFFF" />
-              <Text style={[styles.locationText, { color: 'rgba(255, 255, 255, 0.9)' }]}>{profile.location}</Text>
+              <Text style={[styles.locationText, { color: 'rgba(255, 255, 255, 0.9)' }]}>{formatLocation(profile.location)}</Text>
             </View>
           </Animated.View>
         </LinearGradient>
@@ -546,7 +578,11 @@ const ProfileScreen = () => {
           ]}
         >
           <TouchableOpacity 
-            style={styles.signOutButton} 
+            style={[styles.signOutButton, { 
+              backgroundColor: colors.background.error + '20', 
+              borderColor: colors.background.error + '40',
+              borderWidth: 1 
+            }]} 
             onPress={handleSignOut}
           >
             <Ionicons name="log-out-outline" size={20} color={colors.status.error} />
@@ -582,13 +618,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   headerGradient: {
-    paddingTop: 20,
+    paddingTop: 0,
     paddingBottom: 32,
     paddingHorizontal: 20,
   },
   header: {
     alignItems: 'center',
     paddingHorizontal: 24,
+    paddingTop: 40,
   },
   avatarSection: {
     flexDirection: 'row',
@@ -648,7 +685,7 @@ const styles = StyleSheet.create({
   },
   ratingSection: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   starsContainer: {
     flexDirection: 'row',
@@ -854,10 +891,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     padding: 16,
-    backgroundColor: '#FEF2F2',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FECACA',
   },
   signOutText: {
     fontSize: 16,

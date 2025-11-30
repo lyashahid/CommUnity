@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { auth, postsCol, addDoc, serverTimestamp } from '@/services/firebase';
+import { auth, db, addDoc, serverTimestamp, collection } from '@/services/firebase';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { colors } from '@/theme/colors';
 
@@ -41,10 +41,13 @@ const CreateScreen = ({ navigation }: { navigation: any }) => {
   const [locationPermission, setLocationPermission] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [tempLocation, setTempLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationEnabled, setLocationEnabled] = useState(true);
 
   useEffect(() => {
-    requestLocationPermission();
-  }, []);
+    if (locationEnabled) {
+      requestLocationPermission();
+    }
+  }, [locationEnabled]);
 
   const requestLocationPermission = async () => {
     try {
@@ -107,7 +110,7 @@ const CreateScreen = ({ navigation }: { navigation: any }) => {
       return;
     }
 
-    if (!location) {
+    if (locationEnabled && !location) {
       Alert.alert('Location Required', 'We need your location to show your request to nearby helpers');
       return;
     }
@@ -120,20 +123,25 @@ const CreateScreen = ({ navigation }: { navigation: any }) => {
     setIsLoading(true);
 
     try {
-      await addDoc(postsCol, {
+      const requestData = {
         ownerUid: auth.currentUser.uid,
         ownerName: auth.currentUser.displayName || 'Anonymous',
         title: title.trim(),
         description: description.trim(),
         category: selectedCategory,
         urgency,
-        status: 'active',
-        latitude: location.latitude,
-        longitude: location.longitude,
-        address: location.address,
+        status: 'open',
+        latitude: locationEnabled ? location.latitude : null,
+        longitude: locationEnabled ? location.longitude : null,
+        address: locationEnabled ? location.address : null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      
+      console.log('Creating request with data:', requestData);
+      
+      const docRef = await addDoc(collection(db, 'requests'), requestData);
+      console.log('Request created with ID:', docRef.id);
 
       Alert.alert(
         'Request Posted!',
@@ -300,42 +308,71 @@ const CreateScreen = ({ navigation }: { navigation: any }) => {
           {/* Location */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Location</Text>
-            <View style={styles.locationCard}>
-              <Ionicons name="location" size={20} color={colors.primary} />
-              <View style={styles.locationText}>
-                <Text style={styles.locationTitle}>
-                  {location ? 'Your current location' : 'Location access needed'}
-                </Text>
-                <Text style={styles.locationSubtitle}>
-                  {location?.address || 'We use your location to show your request to nearby helpers'}
+            
+            {/* Location Toggle */}
+            <View style={styles.locationToggleContainer}>
+              <View style={styles.locationToggleText}>
+                <Text style={styles.locationToggleTitle}>Share your location</Text>
+                <Text style={styles.locationToggleSubtitle}>
+                  {locationEnabled 
+                    ? 'Your request will be shown to nearby helpers' 
+                    : 'Your request will be visible to everyone regardless of location'
+                  }
                 </Text>
               </View>
-              {!locationPermission ? (
-                <TouchableOpacity 
-                  style={styles.locationButton}
-                  onPress={requestLocationPermission}
-                >
-                  <Text style={styles.locationButtonText}>Enable</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity 
-                  style={styles.locationButton}
-                  onPress={openLocationPicker}
-                >
-                  <Text style={styles.locationButtonText}>{location ? 'Change' : 'Set'}</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[
+                  styles.toggleSwitch,
+                  locationEnabled && styles.toggleSwitchActive
+                ]}
+                onPress={() => setLocationEnabled(!locationEnabled)}
+              >
+                <View style={[
+                  styles.toggleKnob,
+                  locationEnabled && styles.toggleKnobActive
+                ]} />
+              </TouchableOpacity>
             </View>
+
+            {/* Location Card */}
+            {locationEnabled && (
+              <View style={styles.locationCard}>
+                <Ionicons name="location" size={20} color={colors.primary} />
+                <View style={styles.locationText}>
+                  <Text style={styles.locationTitle}>
+                    {location ? 'Your current location' : 'Location access needed'}
+                  </Text>
+                  <Text style={styles.locationSubtitle}>
+                    {location?.address || 'We use your location to show your request to nearby helpers'}
+                  </Text>
+                </View>
+                {!locationPermission ? (
+                  <TouchableOpacity 
+                    style={styles.locationButton}
+                    onPress={requestLocationPermission}
+                  >
+                    <Text style={styles.locationButtonText}>Enable</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.locationButton}
+                    onPress={openLocationPicker}
+                  >
+                    <Text style={styles.locationButtonText}>{location ? 'Change' : 'Set'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Submit Button */}
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (!title.trim() || !selectedCategory || !location) && styles.submitButtonDisabled,
+              (!title.trim() || !selectedCategory || (locationEnabled && !location)) && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={!title.trim() || !selectedCategory || !location || isLoading}
+            disabled={!title.trim() || !selectedCategory || (locationEnabled && !location) || isLoading}
           >
             {isLoading ? (
               <Text style={styles.submitButtonText}>Posting...</Text>
@@ -351,7 +388,10 @@ const CreateScreen = ({ navigation }: { navigation: any }) => {
           <View style={styles.helpText}>
             <Ionicons name="information-circle" size={16} color={colors.text.placeholder} />
             <Text style={styles.helpTextContent}>
-              Your request will be visible to nearby community members who can offer help.
+              {locationEnabled 
+                ? 'Your request will be visible to nearby community members who can offer help.'
+                : 'Your request will be visible to all community members who can offer help.'
+              }
             </Text>
           </View>
         </ScrollView>
@@ -552,6 +592,57 @@ const styles = StyleSheet.create({
   locationSubtitle: {
     fontSize: 14,
     color: colors.text.secondary,
+  },
+  locationToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.background.primary,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+    marginBottom: 12,
+  },
+  locationToggleText: {
+    flex: 1,
+    marginRight: 16,
+  },
+  locationToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  locationToggleSubtitle: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 18,
+  },
+  toggleSwitch: {
+    width: 48,
+    height: 28,
+    backgroundColor: colors.ui.border,
+    borderRadius: 14,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    backgroundColor: colors.background.primary,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleKnobActive: {
+    transform: [{ translateX: 20 }],
   },
   locationButton: {
     paddingHorizontal: 12,

@@ -100,12 +100,54 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     if (!validateForm()) return;
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(email.trim(), password);
+      const userCredential = await createUserWithEmailAndPassword(email.trim(), password, displayName.trim());
       console.log('Signed up user:', userCredential.user.email);
-      // Let AppNavigator handle the routing based on auth state
+      console.log('User display name set to:', displayName.trim());
+      
+      // Navigate to data collection onboarding after successful signup
+      Alert.alert(
+        'Welcome to CommUnity!',
+        'Let\'s set up your profile first.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('Onboarding' as any);
+            }
+          }
+        ]
+      );
     } catch (error: any) {
       console.error('Signup error:', error);
-      let errorMessage = error.message || 'An error occurred during signup';
+      let errorMessage = 'An error occurred during signup';
+      
+      // Handle specific Firebase auth errors
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'This email is already registered. Please try logging in instead.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak. Please choose a stronger password (at least 6 characters).';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled. Please contact support.';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+          break;
+        default:
+          errorMessage = error.message || 'An error occurred during signup';
+      }
+      
       Alert.alert('Signup Failed', errorMessage);
     } finally {
       setIsLoading(false);

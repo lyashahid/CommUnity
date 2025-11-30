@@ -6,7 +6,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 
 interface HeaderEnvelopeButtonProps {
   onPress: () => void;
@@ -18,11 +18,17 @@ interface HeaderEnvelopeButtonProps {
 
 const HeaderEnvelopeButton: React.FC<HeaderEnvelopeButtonProps> = ({
   onPress,
-  hasActiveRequest,
-  isCompleted,
-  isPending,
+  hasActiveRequest = false,
+  isCompleted = false,
+  isPending = false,
   visible = true,
 }) => {
+  const { colors } = useTheme();
+  
+  // Safety check - if colors is not available, return null
+  if (!colors) {
+    return null;
+  }
   // If not visible, don't render anything
   if (!visible) {
     return null;
@@ -45,9 +51,10 @@ const HeaderEnvelopeButton: React.FC<HeaderEnvelopeButtonProps> = ({
     <TouchableOpacity
       style={[
         styles.envelopeButton,
-        isPending && styles.pendingEnvelopeButton,
-        hasActiveRequest && !isCompleted && styles.activeEnvelopeButton,
-        isCompleted && styles.completedEnvelopeButton
+        { backgroundColor: colors.background.secondary, borderColor: colors.border },
+        isPending && [styles.pendingEnvelopeButton, { backgroundColor: colors.warning + '15' }],
+        hasActiveRequest && !isCompleted && [styles.activeEnvelopeButton, { backgroundColor: colors.warning + '20' }],
+        isCompleted && [styles.completedEnvelopeButton, { backgroundColor: colors.success + '20', borderColor: colors.success }]
       ]}
       onPress={onPress}
     >
@@ -57,7 +64,7 @@ const HeaderEnvelopeButton: React.FC<HeaderEnvelopeButtonProps> = ({
         color={getIconColor()}
       />
       {hasActiveRequest && !isCompleted && (
-        <View style={styles.activeDot} />
+        <View style={[styles.activeDot, { backgroundColor: colors.warning }]} />
       )}
     </TouchableOpacity>
   );
@@ -68,21 +75,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
   },
   activeEnvelopeButton: {
-    backgroundColor: colors.warning + '20',
   },
   pendingEnvelopeButton: {
-    backgroundColor: colors.warning + '15',
   },
   completedEnvelopeButton: {
-    backgroundColor: colors.success + '20',
-    borderColor: colors.success,
   },
   activeDot: {
     position: 'absolute',
@@ -91,7 +92,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.warning,
   },
 });
 

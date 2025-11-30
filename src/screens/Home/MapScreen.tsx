@@ -90,18 +90,20 @@ const MapScreen = ({ navigation }: { navigation: any }) => {
     const lngDelta = radius / (111 * Math.cos(latitude * Math.PI / 180));
 
     const q = query(
-      collection(db, 'posts'),
+      collection(db, 'requests'),
       where('latitude', '>=', latitude - latDelta),
       where('latitude', '<=', latitude + latDelta),
       where('longitude', '>=', longitude - lngDelta),
       where('longitude', '<=', longitude + lngDelta),
-      where('status', '==', 'active'),
+      where('status', '==', 'open'), // Changed from 'active' to 'open' to match seed data
       orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('Map query found', snapshot.docs.length, 'requests');
       const requests = snapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('Map request:', { id: doc.id, title: data.title, lat: data.latitude, lng: data.longitude, status: data.status });
         const distance = calculateDistance(
           latitude,
           longitude,
@@ -147,6 +149,8 @@ const MapScreen = ({ navigation }: { navigation: any }) => {
 
   const handleHelpPress = () => {
     if (selectedRequest) {
+      console.log('Help pressed, selectedRequest:', selectedRequest);
+      console.log('Navigating to RequestDetail with requestId:', selectedRequest.id);
       navigation.navigate('RequestDetail', { requestId: selectedRequest.id });
       setSelectedRequest(null);
     }

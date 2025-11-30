@@ -21,6 +21,7 @@ import {
   doc, 
   getDoc, 
   updateDoc, 
+  deleteDoc,
   serverTimestamp,
   collection,
   addDoc,
@@ -64,6 +65,9 @@ const RequestDetailScreen = () => {
   const insets = useSafeAreaInsets();
   const { requestId } = route.params as RouteParams;
   
+  console.log('RequestDetailScreen mounted, route.params:', route.params);
+  console.log('Extracted requestId:', requestId);
+  
   const [request, setRequest] = useState<HelpRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
@@ -88,10 +92,29 @@ const RequestDetailScreen = () => {
 
   const fetchRequestDetails = async () => {
     try {
-      const requestDoc = await getDoc(doc(db, 'posts', requestId));
+      console.log('Fetching request details for ID:', requestId);
+      const requestDoc = await getDoc(doc(db, 'requests', requestId));
+      console.log('Request doc exists:', requestDoc.exists());
+      
       if (requestDoc.exists()) {
         const data = requestDoc.data();
+        console.log('Request data:', data);
         
+        // Fetch owner details first
+        let ownerData = { name: 'Anonymous', bio: '', photo: '' };
+        if (data.ownerUid || data.requesterId) {
+          const ownerUid = data.ownerUid || data.requesterId;
+          const ownerDoc = await getDoc(doc(db, 'users', ownerUid));
+          if (ownerDoc.exists()) {
+            const userData = ownerDoc.data();
+            ownerData = {
+              name: userData.displayName || userData.name || 'Community Member',
+              bio: userData.bio || '',
+              photo: userData.photoURL || userData.avatar || '',
+            };
+          }
+        }
+
         // Calculate distance if we have user location and request location
         let distanceKm = 0;
         if (userLocation && data.latitude && data.longitude) {
@@ -103,20 +126,6 @@ const RequestDetailScreen = () => {
           );
         }
 
-        // Fetch owner details
-        let ownerData = { name: 'Anonymous', bio: '', photo: '' };
-        if (data.requesterId) {
-          const ownerDoc = await getDoc(doc(db, 'users', data.requesterId));
-          if (ownerDoc.exists()) {
-            const userData = ownerDoc.data();
-            ownerData = {
-              name: userData.displayName || 'Community Member',
-              bio: userData.bio || '',
-              photo: userData.photoURL || '',
-            };
-          }
-        }
-
         const requestData: HelpRequest = {
           id: requestDoc.id,
           title: data.title || 'Untitled Request',
@@ -126,20 +135,20 @@ const RequestDetailScreen = () => {
           status: data.status || 'open',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
-          requesterId: data.requesterId || '',
+          requesterId: data.ownerUid || data.requesterId || '',
           requesterName: ownerData.name,
           ownerBio: ownerData.bio,
           ownerPhoto: ownerData.photo,
           latitude: data.latitude,
           longitude: data.longitude,
-          locationName: data.locationName,
+          locationName: data.address || data.locationName,
           helperUid: data.helperUid,
           helperName: data.helperName,
           distanceKm,
         };
 
         setRequest(requestData);
-        setIsOwner(data.requesterId === auth.currentUser?.uid);
+        setIsOwner((data.ownerUid || data.requesterId) === auth.currentUser?.uid);
       }
     } catch (error) {
       console.error('Error fetching request details:', error);
@@ -184,21 +193,29 @@ const RequestDetailScreen = () => {
     );
   };
 
+  // Helper function to get user display name with fallbacks
+  const getUserDisplayName = (user: any, fallback: string) => {
+    return user?.displayName || 
+           user?.name || 
+           user?.email?.split('@')[0] || 
+           fallback;
+  };
+
   const startHelpFlow = async () => {
     if (!request) return;
 
     // Update post status
-    const postRef = doc(db, 'posts', requestId);
+    const postRef = doc(db, 'requests', requestId);
     await updateDoc(postRef, {
       status: 'in_progress',
       helperUid: auth.currentUser?.uid,
-      helperName: auth.currentUser?.displayName,
+      helperName: getUserDisplayName(auth.currentUser, 'Helper'),
       updatedAt: serverTimestamp(),
     });
 
     // Create or reuse chat
     const helperUid = auth.currentUser?.uid as string;
-    const helperName = auth.currentUser?.displayName as string;
+    const helperName = getUserDisplayName(auth.currentUser, 'Helper');
     const ownerUid = request.requesterId;
 
     if (!helperUid || !ownerUid) throw new Error('Missing user IDs');
@@ -218,11 +235,25 @@ const RequestDetailScreen = () => {
         lastMessageTime: serverTimestamp(),
       });
     } else {
+      // Get owner name with fallbacks
+      const ownerName = request.ownerName || 
+                       request.requesterName || 
+                       request.owner?.displayName || 
+                       request.owner?.name || 
+                       'Requester';
+      
+      console.log('Creating chat with participants:', {
+        helperUid,
+        helperName,
+        ownerUid,
+        ownerName
+      });
+
       const docRef = await addDoc(chatsRef, {
         participantIds: [helperUid, ownerUid],
         participants: {
-          [helperUid]: { name: helperName || 'Helper' },
-          [ownerUid]: { name: request.ownerName },
+          [helperUid]: { name: helperName },
+          [ownerUid]: { name: ownerName },
         },
         lastMessage: "I'd like to help",
         lastMessageTime: serverTimestamp(),
@@ -477,9 +508,13 @@ const RequestDetailScreen = () => {
                 )}
               </View>
               <View style={styles.requesterDetails}>
-                <Text style={[styles.requesterName, { color: colors.text.primary }]}>{request.ownerName}</Text>
-                {request.ownerBio && (
+                <Text style={[styles.requesterName, { color: colors.text.primary }]}>
+                  {request.requesterName || 'Community Member'}
+                </Text>
+                {request.ownerBio ? (
                   <Text style={[styles.requesterBio, { color: colors.text.secondary }]}>{request.ownerBio}</Text>
+                ) : (
+                  <Text style={[styles.requesterBio, { color: colors.text.placeholder }]}>No bio available</Text>
                 )}
               </View>
             </View>
@@ -588,9 +623,11 @@ const styles = StyleSheet.create({
     padding: 24,
     marginTop: 20,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 4,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   requestHeader: {
     marginBottom: 16,
@@ -674,9 +711,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   requesterInfo: {
     flexDirection: 'row',
@@ -716,9 +755,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   helperStatus: {
     fontSize: 14,

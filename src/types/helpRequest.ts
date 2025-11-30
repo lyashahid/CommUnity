@@ -93,8 +93,9 @@ export const isRequestAvailableForFeed = (request: HelpRequest, currentUserId?: 
   // Don't show user's own requests
   if (request.requesterId === currentUserId) return false;
   
-  // Don't show completed or cancelled requests
-  if (request.status === 'completed' || request.status === 'cancelled') return false;
+  // Don't show completed, cancelled, or inactive requests (comprehensive list)
+  const inactiveStatuses = ['completed', 'cancelled', 'rejected', 'closed', 'inactive', 'done'];
+  if (inactiveStatuses.includes(request.status)) return false;
   
   // Don't show requests that are already accepted/ongoing with current user as helper
   if (request.helperId === currentUserId && 

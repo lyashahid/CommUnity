@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '@/services/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -27,6 +27,20 @@ type MyOffersNavigationProp = StackNavigationProp<any, 'MyOffers'>;
 
 const MyOffersScreen = () => {
   const navigation = useNavigation<MyOffersNavigationProp>();
+  const { colors } = useTheme();
+  
+  // Safety check - if colors is not available, return loading
+  if (!colors) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]} edges={['top', 'left', 'right']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={[styles.loadingText, { color: '#000000' }]}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -127,17 +141,17 @@ const MyOffersScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading your offers...</Text>
+          <Text style={[styles.loadingText, { color: colors.text.primary }]}>Loading your offers...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <LinearGradient
         colors={[colors.primary, colors.primaryLight] as const}
@@ -156,20 +170,20 @@ const MyOffersScreen = () => {
       </LinearGradient>
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { backgroundColor: colors.surface.primary }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'active' && [styles.activeTab, { backgroundColor: colors.primary }]]}
           onPress={() => setActiveTab('active')}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText, { color: activeTab === 'active' ? '#FFFFFF' : colors.text.secondary }]}>
             Active ({offers.filter(o => o.status === 'ongoing').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'completed' && [styles.activeTab, { backgroundColor: colors.primary }]]}
           onPress={() => setActiveTab('completed')}
         >
-          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText, { color: activeTab === 'completed' ? '#FFFFFF' : colors.text.secondary }]}>
             Completed ({offers.filter(o => o.status === 'completed' || o.status === 'cancelled' || o.status === 'rejected').length})
           </Text>
         </TouchableOpacity>
@@ -183,27 +197,27 @@ const MyOffersScreen = () => {
         }
       >
         {indexError && (
-          <View style={styles.errorContainer}>
+          <View style={[styles.errorContainer, { backgroundColor: colors.background.secondary }]}>
             <Ionicons name="warning" size={24} color={colors.status.warning} />
-            <Text style={styles.errorText}>{indexError}</Text>
-            <Text style={styles.errorSubtext}>Please try again in a few minutes</Text>
+            <Text style={[styles.errorText, { color: colors.text.primary }]}>{indexError}</Text>
+            <Text style={[styles.errorSubtext, { color: colors.text.secondary }]}>Please try again in a few minutes</Text>
           </View>
         )}
         
         {filteredOffers.length === 0 && !indexError ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="hand-right-outline" size={64} color={colors.text.placeholder} />
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>
               {activeTab === 'active' ? 'No Active Offers' : 'No Completed Offers'}
             </Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: colors.text.primary }]}>
               {activeTab === 'active' 
                 ? 'Your active help offers will appear here'
                 : 'Your completed offers will appear here'
               }
             </Text>
             <TouchableOpacity
-              style={styles.browseButton}
+              style={[styles.browseButton, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('App', { screen: 'Feed' })}
             >
               <Ionicons name="search" size={20} color="#FFFFFF" />
@@ -212,19 +226,19 @@ const MyOffersScreen = () => {
           </View>
         ) : (
           filteredOffers.map((offer) => (
-            <View key={offer.id} style={styles.offerCard}>
+            <View key={offer.id} style={[styles.offerCard, { backgroundColor: colors.surface.primary }]}>
               <View style={styles.offerHeader}>
                 <View style={styles.userInfo}>
                   {offer.requesterName && (
-                    <View style={styles.avatarPlaceholder}>
+                    <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
                       <Text style={styles.avatarText}>
                         {offer.requesterName.split(' ').map(n => n[0]).join('')}
                       </Text>
                     </View>
                   )}
                   <View style={styles.userDetails}>
-                    <Text style={styles.userName}>{offer.requesterName}</Text>
-                    <Text style={styles.offerTime}>
+                    <Text style={[styles.userName, { color: colors.text.primary }]}>{offer.requesterName}</Text>
+                    <Text style={[styles.offerTime, { color: colors.text.secondary }]}>
                       {offer.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
                     </Text>
                   </View>
@@ -237,8 +251,8 @@ const MyOffersScreen = () => {
               </View>
 
               <View style={styles.requestInfo}>
-                <Text style={styles.requestTitle}>{offer.title}</Text>
-                <Text style={styles.requestDescription} numberOfLines={2}>
+                <Text style={[styles.requestTitle, { color: colors.text.primary }]}>{offer.title}</Text>
+                <Text style={[styles.requestDescription, { color: colors.text.secondary }]} numberOfLines={2}>
                   {offer.description}
                 </Text>
               </View>
@@ -246,17 +260,17 @@ const MyOffersScreen = () => {
               <View style={styles.offerMeta}>
                 <View style={styles.metaItem}>
                   <Ionicons name="location" size={16} color={colors.text.secondary} />
-                  <Text style={styles.metaText}>{offer.location}</Text>
+                  <Text style={[styles.metaText, { color: colors.text.secondary }]}>{offer.location}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Ionicons name="pricetag" size={16} color={colors.text.secondary} />
-                  <Text style={styles.metaText}>{offer.category}</Text>
+                  <Text style={[styles.metaText, { color: colors.text.secondary }]}>{offer.category}</Text>
                 </View>
               </View>
 
               <View style={styles.offerActions}>
                 <TouchableOpacity
-                  style={styles.chatButton}
+                  style={[styles.chatButton, { borderColor: colors.primary }]}
                   onPress={() => navigation.navigate('Chat', {
                     requestId: offer.id,
                     otherUserId: offer.requesterId,
@@ -265,7 +279,7 @@ const MyOffersScreen = () => {
                   })}
                 >
                   <Ionicons name="chatbubbles" size={16} color={colors.primary} />
-                  <Text style={styles.chatButtonText}>Chat</Text>
+                  <Text style={[styles.chatButtonText, { color: colors.primary }]}>Chat</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -279,7 +293,6 @@ const MyOffersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.accent,
   },
   loadingContainer: {
     flex: 1,
@@ -289,7 +302,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: colors.text.secondary,
     fontWeight: '500',
   },
   header: {
@@ -320,7 +332,6 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.surface.primary,
     marginHorizontal: 20,
     borderRadius: 12,
     padding: 4,
@@ -333,12 +344,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text.secondary,
   },
   activeTabText: {
     color: '#FFFFFF',
@@ -356,21 +365,24 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: colors.text.primary,
     marginTop: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: colors.text.secondary,
+    fontWeight: '500',
+    marginTop: 16,
     textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
     marginTop: 8,
-    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   browseButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -381,27 +393,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 16,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 40,
   },
   errorText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text.primary,
     marginTop: 8,
     textAlign: 'center',
   },
   errorSubtext: {
     fontSize: 12,
-    color: colors.text.secondary,
     marginTop: 4,
     textAlign: 'center',
   },
   offerCard: {
-    backgroundColor: colors.surface.primary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -431,7 +439,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -447,11 +454,9 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.primary,
   },
   offerTime: {
     fontSize: 12,
-    color: colors.text.secondary,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -469,16 +474,13 @@ const styles = StyleSheet.create({
   requestTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text.primary,
     marginBottom: 4,
   },
   requestDescription: {
     fontSize: 14,
-    color: colors.text.secondary,
     lineHeight: 20,
   },
   messageContainer: {
-    backgroundColor: colors.background.secondary,
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -486,12 +488,10 @@ const styles = StyleSheet.create({
   messageLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text.secondary,
     marginBottom: 4,
   },
   messageText: {
     fontSize: 14,
-    color: colors.text.primary,
     lineHeight: 18,
   },
   offerMeta: {
@@ -506,7 +506,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: colors.text.secondary,
   },
   offerActions: {
     flexDirection: 'row',
@@ -520,12 +519,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.status.error,
   },
   withdrawButtonText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.status.error,
   },
   completeButton: {
     flex: 1,
@@ -533,7 +530,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     borderRadius: 8,
   },
@@ -550,12 +546,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.primary,
   },
   chatButtonText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.primary,
   },
 });
 

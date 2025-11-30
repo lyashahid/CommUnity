@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '@/services/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
@@ -27,6 +27,7 @@ type MyRequestsNavigationProp = StackNavigationProp<any, 'MyRequests'>;
 
 const MyRequestsScreen = () => {
   const navigation = useNavigation<MyRequestsNavigationProp>();
+  const { colors } = useTheme();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,17 +136,17 @@ const MyRequestsScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top', 'left', 'right']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading your requests...</Text>
+          <Text style={[styles.loadingText, { color: colors.text.primary }]}>Loading your requests...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <LinearGradient
         colors={[colors.primary, colors.primaryLight] as const}
@@ -164,20 +165,20 @@ const MyRequestsScreen = () => {
       </LinearGradient>
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { backgroundColor: colors.surface.primary }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'active' && [styles.activeTab, { backgroundColor: colors.primary }]]}
           onPress={() => setActiveTab('active')}
         >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText, { color: activeTab === 'active' ? '#FFFFFF' : colors.text.secondary }]}>
             Active ({requests.filter(r => r.status === 'open' || r.status === 'pending' || r.status === 'ongoing').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'completed' && [styles.activeTab, { backgroundColor: colors.primary }]]}
           onPress={() => setActiveTab('completed')}
         >
-          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText, { color: activeTab === 'completed' ? '#FFFFFF' : colors.text.secondary }]}>
             Completed ({requests.filter(r => r.status === 'completed' || r.status === 'cancelled' || r.status === 'rejected').length})
           </Text>
         </TouchableOpacity>
@@ -191,27 +192,27 @@ const MyRequestsScreen = () => {
         }
       >
         {indexError && (
-          <View style={styles.errorContainer}>
+          <View style={[styles.errorContainer, { backgroundColor: colors.background.secondary }]}>
             <Ionicons name="warning" size={24} color={colors.status.warning} />
-            <Text style={styles.errorText}>{indexError}</Text>
-            <Text style={styles.errorSubtext}>Please try again in a few minutes</Text>
+            <Text style={[styles.errorText, { color: colors.text.primary }]}>{indexError}</Text>
+            <Text style={[styles.errorSubtext, { color: colors.text.secondary }]}>Please try again in a few minutes</Text>
           </View>
         )}
         
         {filteredRequests.length === 0 && !indexError ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="heart-outline" size={64} color={colors.text.placeholder} />
-            <Text style={styles.emptyTitle}>
+            <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>
               {activeTab === 'active' ? 'No Active Requests' : 'No Completed Requests'}
             </Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
               {activeTab === 'active' 
                 ? 'You haven\'t created any help requests yet'
                 : 'Your completed requests will appear here'
               }
             </Text>
             <TouchableOpacity
-              style={styles.createButton}
+              style={[styles.createButton, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('App', { screen: 'Create' })}
             >
               <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -222,16 +223,20 @@ const MyRequestsScreen = () => {
           filteredRequests.map((request) => (
             <View key={request.id} style={[
               styles.requestCard,
-              request.isOfficialRequest && styles.officialRequestCard
+              { backgroundColor: colors.surface.primary },
+              request.isOfficialRequest && [styles.officialRequestCard, { 
+                borderColor: colors.success + '30',
+                backgroundColor: colors.success + '5'
+              }]
             ]}>
               <View style={styles.requestHeader}>
                 <View style={styles.requestTitleContainer}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.requestTitle}>{request.title}</Text>
+                    <Text style={[styles.requestTitle, { color: colors.text.primary }]}>{request.title}</Text>
                     {request.isOfficialRequest && (
-                      <View style={styles.officialBadge}>
+                      <View style={[styles.officialBadge, { backgroundColor: colors.success + '20' }]}>
                         <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                        <Text style={styles.officialBadgeText}>Official</Text>
+                        <Text style={[styles.officialBadgeText, { color: colors.success }]}>Official</Text>
                       </View>
                     )}
                   </View>
@@ -249,25 +254,25 @@ const MyRequestsScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.requestDescription} numberOfLines={2}>
+              <Text style={[styles.requestDescription, { color: colors.text.secondary }]} numberOfLines={2}>
                 {request.description}
               </Text>
 
               {request.isOfficialRequest && request.location === 'Chat' && (
-                <View style={styles.chatRequestInfo}>
+                <View style={[styles.chatRequestInfo, { backgroundColor: colors.primary + '10' }]}>
                   <Ionicons name="chatbubble" size={14} color={colors.primary} />
-                  <Text style={styles.chatRequestText}>Chat-based request</Text>
+                  <Text style={[styles.chatRequestText, { color: colors.primary }]}>Chat-based request</Text>
                 </View>
               )}
 
               <View style={styles.requestMeta}>
                 <View style={styles.metaItem}>
                   <Ionicons name="location" size={16} color={colors.text.secondary} />
-                  <Text style={styles.metaText}>{request.location}</Text>
+                  <Text style={[styles.metaText, { color: colors.text.secondary }]}>{request.location}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <Ionicons name="time" size={16} color={colors.text.secondary} />
-                  <Text style={styles.metaText}>
+                  <Text style={[styles.metaText, { color: colors.text.secondary }]}>
                     {request.createdAt?.toDate?.().toLocaleDateString() || 'Recently'}
                   </Text>
                 </View>
@@ -275,7 +280,7 @@ const MyRequestsScreen = () => {
 
               {/* Rating display for completed requests */}
               {request.status === 'completed' && request.rating && (
-                <View style={styles.ratingContainer}>
+                <View style={[styles.ratingContainer, { backgroundColor: colors.background.secondary }]}>
                   <View style={styles.starsContainer}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Ionicons
@@ -286,9 +291,9 @@ const MyRequestsScreen = () => {
                       />
                     ))}
                   </View>
-                  <Text style={styles.ratingText}>{request.rating}/5</Text>
+                  <Text style={[styles.ratingText, { color: colors.text.primary }]}>{request.rating}/5</Text>
                   {request.feedback && (
-                    <Text style={styles.feedbackText} numberOfLines={1}>
+                    <Text style={[styles.feedbackText, { color: colors.text.secondary }]} numberOfLines={1}>
                       "{request.feedback}"
                     </Text>
                   )}
@@ -298,11 +303,11 @@ const MyRequestsScreen = () => {
               <View style={styles.requestFooter}>
                 <View style={styles.urgencyContainer}>
                   <View style={[styles.urgencyDot, { backgroundColor: getUrgencyColor(request.urgency) }]} />
-                  <Text style={styles.urgencyText}>{request.urgency.toUpperCase()}</Text>
+                  <Text style={[styles.urgencyText, { color: colors.text.secondary }]}>{request.urgency.toUpperCase()}</Text>
                 </View>
                 <View style={styles.offersContainer}>
                   <Ionicons name="people" size={16} color={colors.primary} />
-                  <Text style={styles.offersText}>{request.helpOffers} offers</Text>
+                  <Text style={[styles.offersText, { color: colors.primary }]}>{request.helpOffers} offers</Text>
                 </View>
               </View>
             </View>
@@ -316,7 +321,6 @@ const MyRequestsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.accent,
   },
   loadingContainer: {
     flex: 1,
@@ -326,7 +330,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: colors.text.secondary,
     fontWeight: '500',
   },
   header: {
@@ -357,7 +360,6 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.surface.primary,
     marginHorizontal: 20,
     borderRadius: 12,
     padding: 4,
@@ -370,12 +372,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text.secondary,
   },
   activeTabText: {
     color: '#FFFFFF',
@@ -393,12 +393,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: colors.text.primary,
     marginTop: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: colors.text.secondary,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 24,
@@ -407,7 +405,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -418,7 +415,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: colors.background.secondary,
     borderRadius: 12,
     padding: 16,
     marginVertical: 16,
@@ -427,18 +423,15 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text.primary,
     marginTop: 8,
     textAlign: 'center',
   },
   errorSubtext: {
     fontSize: 12,
-    color: colors.text.secondary,
     marginTop: 4,
     textAlign: 'center',
   },
   requestCard: {
-    backgroundColor: colors.surface.primary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -460,7 +453,6 @@ const styles = StyleSheet.create({
   requestTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text.primary,
     marginBottom: 4,
   },
   statusBadge: {
@@ -479,7 +471,6 @@ const styles = StyleSheet.create({
   },
   requestDescription: {
     fontSize: 14,
-    color: colors.text.secondary,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -495,7 +486,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: colors.text.secondary,
   },
   requestFooter: {
     flexDirection: 'row',
@@ -515,7 +505,6 @@ const styles = StyleSheet.create({
   urgencyText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text.secondary,
   },
   offersContainer: {
     flexDirection: 'row',
@@ -525,13 +514,10 @@ const styles = StyleSheet.create({
   offersText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.primary,
   },
   // Official request styles
   officialRequestCard: {
     borderWidth: 2,
-    borderColor: colors.success + '30',
-    backgroundColor: colors.success + '5',
   },
   titleRow: {
     flexDirection: 'row',
@@ -545,13 +531,11 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: colors.success + '20',
     borderRadius: 8,
   },
   officialBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.success,
   },
   chatRequestInfo: {
     flexDirection: 'row',
@@ -560,13 +544,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: colors.primary + '10',
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
   chatRequestText: {
     fontSize: 12,
-    color: colors.primary,
     fontWeight: '500',
   },
   // Rating styles
@@ -576,7 +558,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: colors.background.secondary,
     borderRadius: 8,
   },
   starsContainer: {
@@ -586,11 +567,9 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.text.primary,
   },
   feedbackText: {
     fontSize: 11,
-    color: colors.text.secondary,
     fontStyle: 'italic',
   },
 });

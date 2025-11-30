@@ -2,11 +2,18 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 const BeautifulLoadingScreen = () => {
+  const { colors } = useTheme();
+  
+  // Safety check - if colors is not available, return null
+  if (!colors) {
+    return null;
+  }
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -85,7 +92,7 @@ const BeautifulLoadingScreen = () => {
           {/* Logo/Icon Container */}
           <Animated.View
             style={[
-              styles.iconContainer,
+              styles.logoContainer,
               {
                 transform: [{ rotate }, { scale: pulseAnim }],
               },
@@ -100,8 +107,22 @@ const BeautifulLoadingScreen = () => {
             </View>
           </Animated.View>
 
-          {/* App Name */}
-          <Text style={styles.appTitle}>CommUnity</Text>
+          {/* App Title */}
+          <Animated.Text
+            style={[
+              styles.appTitle,
+              { color: colors.text.inverse },
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }) }],
+              },
+            ]}
+          >
+            CommUnity
+          </Animated.Text>
           <Text style={styles.appSubtitle}>Helping Communities Thrive</Text>
 
           {/* Loading Dots */}
@@ -144,6 +165,7 @@ const BeautifulLoadingScreen = () => {
                   key={index}
                   style={[
                     styles.dot,
+                    { backgroundColor: colors.text.inverse },
                     {
                       transform: [{ scale: dotScale }],
                       opacity: dotOpacity,
@@ -205,7 +227,6 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: colors.text.inverse,
     marginBottom: 8,
     textAlign: 'center',
     fontFamily: 'Pacifico-Regular',
@@ -231,7 +252,6 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.text.inverse,
     marginHorizontal: 8,
   },
   loadingText: {

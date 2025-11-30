@@ -1,7 +1,8 @@
 // src/services/firebase.ts
 import { initializeApp } from 'firebase/app';
 import {
-  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
   onAuthStateChanged as fbOnAuthStateChanged,
   signInWithEmailAndPassword as fbSignInWithEmailAndPassword,
   createUserWithEmailAndPassword as fbCreateUserWithEmailAndPassword,
@@ -13,6 +14,7 @@ import {
   browserSessionPersistence,
   inMemoryPersistence
 } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getFirestore,
   collection,
@@ -55,8 +57,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Auth and Firestore instances - Firebase automatically handles persistence in React Native
-const auth = getAuth(app);
+// Auth and Firestore instances with proper React Native persistence
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
+});
 const db = getFirestore(app);
 const storage = getStorage(app);
 
@@ -87,7 +91,7 @@ export const signInWithEmailAndPassword = async (email: string, password: string
   }
 };
 
-export const createUserWithEmailAndPassword = async (email: string | undefined | null, password: string) => {
+export const createUserWithEmailAndPassword = async (email: string | undefined | null, password: string, displayName?: string) => {
   // Check if email is provided and is a string
   if (typeof email !== 'string' || !email) {
     const error = new Error('Please enter a valid email address');
@@ -110,6 +114,15 @@ export const createUserWithEmailAndPassword = async (email: string | undefined |
   try {
     const userCredential = await fbCreateUserWithEmailAndPassword(auth, trimmedEmail, password);
     console.log('User created successfully:', userCredential.user.uid);
+    
+    // Update the user's profile with display name if provided
+    if (displayName && displayName.trim()) {
+      await fbUpdateProfile(userCredential.user, {
+        displayName: displayName.trim()
+      });
+      console.log('User display name updated:', displayName.trim());
+    }
+    
     return userCredential;
   } catch (error: any) {
     console.error('Signup error details:', {
