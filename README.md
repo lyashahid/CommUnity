@@ -29,28 +29,16 @@ The app features a comprehensive help request system with real-time chat, locati
    npm install
    ```
 
-3. **Set up Firebase**
-   ```bash
-   npm run setup-firebase
-   ```
-   - Follow the prompts to configure your Firebase project
-   - Enable Authentication, Firestore, and Storage
-   - Update configuration files as needed
-
-4. **Configure environment variables**
+3. **Configure environment variables**
    - Copy `.env.example` to `.env` (if available)
    - Add your Firebase configuration details
 
-5. **Start the development server**
+4. **Start the development server with expo**
    ```bash
-   npm run dev
-   ```
-   or
-   ```bash
-   expo start
+   npx expo start
    ```
 
-6. **Run on device/simulator**
+5. **Run on device/simulator**
    - Download Expo Go app on your mobile device
    - Scan the QR code from the terminal
    - Or run on simulator: `expo start --ios` or `expo start --android`
