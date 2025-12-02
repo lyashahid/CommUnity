@@ -21,7 +21,6 @@ The app features a comprehensive help request system with real-time chat, locati
 1. **Clone the repository**
    ```bash
    git clone https://github.com/lyashahid/CommUnity.git
-   cd CommUnity/community-assist-app
    ```
 
 2. **Install dependencies**

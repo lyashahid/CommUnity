@@ -139,24 +139,8 @@ const FeedScreen = () => {
       });
       
       const filteredPosts = posts.filter(post => {
-        // Debug: Log the status and filtering result
-        // Use RequestCardItem properties for filtering
-        const isOwnRequest = post.ownerUid === auth.currentUser?.uid;
-        const isActiveRequest = post.status && !['completed', 'cancelled', 'rejected', 'closed', 'inactive', 'done', 'accepted'].includes(post.status);
-        const isAlreadyHelper = post.helperUid === auth.currentUser?.uid;
-        
-        // Don't show user's own requests or inactive requests
-        const isAvailable = !isOwnRequest && isActiveRequest && !isAlreadyHelper;
-        
-        console.log(`Post ${post.id}: status="${post.status}", available=${isAvailable}, title="${post.title}"`);
-        
-        // Additional manual filtering for safety
-        const inactiveStatuses = ['completed', 'cancelled', 'rejected', 'closed', 'inactive', 'done', 'accepted'];
-        const manuallyFiltered = !inactiveStatuses.includes(post.status || '') && 
-                                post.ownerUid !== auth.currentUser?.uid;
-        
-        // Use both the helper function and manual filtering
-        return isAvailable && manuallyFiltered;
+        // Use the proper helper function for filtering
+        return isRequestAvailableForFeed(post as HelpRequest, auth.currentUser?.uid);
       });
       
       setData(filteredPosts);
