@@ -1,23 +1,27 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, PermissionsAndroid, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db, doc, setDoc } from '@/services/firebase';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/context/ThemeContext';
 import * as Location from 'expo-location';
 
-type OnboardingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Onboarding'>;
+type OnboardingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Onboarding' | 'OnboardingFlow'>;
+type OnboardingScreenRouteProp = RouteProp<RootStackParamList, 'Onboarding'>;
 
 interface OnboardingScreenProps {
   navigation: OnboardingScreenNavigationProp;
+  route?: OnboardingScreenRouteProp;
 }
 
-const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation, route }) => {
   const { user: currentUser } = useAuth();
   const { colors } = useTheme();
+  const isMounted = useRef(true);
   const skillsList = useMemo(() => [
     'Tutoring', 'Tech Support', 'Pet Care', 'Errands', 'Cooking',
     'Cleaning', 'Gardening', 'Moving Help', 'Babysitting', 'Elderly Care',
@@ -81,6 +85,10 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
 
   useEffect(() => {
     getCurrentLocation();
+    
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   const handleComplete = async () => {
@@ -109,7 +117,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
           address: location.address
         },
         skills: selectedSkills,
-        isOnboarded: true,
+        isOnboarded: false, // Will be set to true after OnboardingFlow completes
         updatedAt: new Date().toISOString(),
         level: 1,
         rating: 0,
@@ -121,28 +129,44 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
 
       await setDoc(userRef, userData, { merge: true });
       
-      // Show success message
+      console.log('User document saved with data:', JSON.stringify(userData, null, 2));
+      
+      console.log('About to navigate to OnboardingFlow');
+      console.log('Navigation prop available:', !!navigation);
+      console.log('Current route:', route?.name);
+      
+      // Show success message first
       Alert.alert(
         'Profile Complete!', 
-        'Your profile has been created successfully!\n\nNow let\'s show you around the app.'
-      );
-      
-      // Navigate to instruction slides after profile completion
-      setTimeout(() => {
-        navigation.navigate('OnboardingFlow' as any, {
-          onComplete: () => {
-            // After instruction slides, set onboarded status to go to main app
-            // This will trigger the AppNavigator to show the main app
-            console.log('OnboardingFlow completed, setting isOnboarded to true');
-            // We need to access the navigator's state somehow
-            // For now, let's navigate to the App screen directly
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'App' as any }],
-            });
+        'Your profile has been created successfully!\n\nNow let\'s show you around the app.',
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              // Navigate after user dismisses alert
+              if (isMounted.current && navigation) {
+                console.log('Navigating to OnboardingFlow after alert');
+                try {
+                  navigation.replace('OnboardingFlow', {
+                    onComplete: () => {
+                      // After instruction slides, set onboarded status to go to main app
+                      console.log('OnboardingFlow completed, setting isOnboarded to true');
+                      // Call the parent onComplete callback if it exists
+                      if (route?.params?.onComplete) {
+                        route.params.onComplete();
+                      }
+                    }
+                  });
+                  console.log('Navigation to OnboardingFlow called successfully');
+                } catch (error) {
+                  console.error('Navigation error:', error);
+                  Alert.alert('Navigation Error', 'Failed to navigate to onboarding flow. Please try again.');
+                }
+              }
+            }
           }
-        });
-      }, 1500);
+        ]
+      );
     } catch (error) {
       console.error('Error saving profile:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');

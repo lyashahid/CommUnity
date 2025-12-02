@@ -19,28 +19,16 @@ import { auth, db } from '@/services/firebase';
 import { doc, getDoc, setDoc, signOut } from '@/services/firebase';
 import { useFocusEffect, useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
 import { useTheme } from '@/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-type RootStackParamList = {
-  Profile: {
-    updated?: boolean;
-    profile?: UserProfile;
-  };
-  EditProfile: {
-    user: {
-      uid: string;
-      displayName: string | null;
-      email: string | null;
-      photoURL: string | null;
-      bio?: string;
-    };
-  };
+type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList> & {
+  navigate: (screen: keyof TabParamList | keyof RootStackParamList, params?: any) => void;
 };
-
-type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Profile'>;
-type ProfileScreenRouteProp = RouteProp<RootStackParamList, 'Profile'>;
+type ProfileScreenRouteProp = RouteProp<TabParamList, 'Profile'>;
 
 type UserProfile = {
   name: string;
@@ -165,7 +153,20 @@ const ProfileScreen = () => {
         
         animateIn();
       } else {
-        console.log('User document does not exist, creating default profile...');
+        console.log('User document does not exist, checking onboarding status before creating default profile...');
+        
+        // Check if user has completed onboarding before creating profile
+        const { hasSeenOnboarding } = await import('@/utils/onboarding');
+        const hasCompletedOnboarding = await hasSeenOnboarding();
+        
+        if (!hasCompletedOnboarding) {
+          console.log('User has not completed onboarding, skipping profile creation');
+          setHasLoaded(true);
+          profileLoadedRef.current = true;
+          return;
+        }
+        
+        console.log('User has completed onboarding, creating default profile...');
         const defaultProfile: UserProfile = {
           name: currentUser.displayName || 'Community Helper',
           email: currentUser.email || '',
@@ -183,13 +184,15 @@ const ProfileScreen = () => {
         };
         
         console.log('Creating user document with data:', defaultProfile);
-        await setDoc(doc(db, 'users', currentUser.uid), {
+        
+        // Create user data object without undefined values
+        const userData = {
           displayName: defaultProfile.name,
           email: defaultProfile.email,
-          photoURL: defaultProfile.avatar,
           bio: defaultProfile.bio,
           skills: defaultProfile.skills,
           location: defaultProfile.location,
+          isOnboarded: false, // Explicitly set to false for new users
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           level: defaultProfile.level,
@@ -198,7 +201,14 @@ const ProfileScreen = () => {
           completedRequests: defaultProfile.completedRequests,
           helpedPeople: defaultProfile.helpedPeople,
           responseRate: defaultProfile.responseRate,
-        });
+        };
+
+        // Only add photoURL if it's not undefined
+        if (defaultProfile.avatar !== undefined) {
+          (userData as any).photoURL = defaultProfile.avatar;
+        }
+
+        await setDoc(doc(db, 'users', currentUser.uid), userData);
         
         setProfile(defaultProfile);
         setHasLoaded(true);
@@ -284,11 +294,11 @@ const ProfileScreen = () => {
   };
 
   const handleMyRequests = () => {
-    navigation.navigate('MyRequests' as any);
+    navigation.navigate('MyRequests');
   };
 
   const handleMyOffers = () => {
-    navigation.navigate('MyOffers' as any);
+    navigation.navigate('MyOffers');
   };
 
   const handleMessages = () => {

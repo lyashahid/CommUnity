@@ -18,14 +18,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { createUserWithEmailAndPassword, onAuthStateChanged } from '@/services/firebase';
+import { resetOnboarding } from '@/utils/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '@/navigation/AppNavigator';
+import { AuthStackParamList, RootStackParamList } from '@/navigation/AppNavigator';
 import { colors } from '@/theme/colors';
 
-type SignupScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Signup'>;
+type SignupScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Signup'>;
 
 interface SignupScreenProps {
   navigation: SignupScreenNavigationProp;
@@ -101,30 +102,46 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(email.trim(), password, displayName.trim());
-      console.log('Signed up user:', userCredential.user.email);
-      console.log('User display name set to:', displayName.trim());
+      console.log('✓ Signed up user:', userCredential.user.email);
+      console.log('✓ User display name set to:', displayName.trim());
       
-      // Navigate to data collection onboarding after successful signup
+      // Reset onboarding status for new users - this sets AsyncStorage to false
+      // which tells AppNavigator that this user needs onboarding
+      console.log('Resetting onboarding status for new user...');
+      await resetOnboarding();
+      console.log('✓ Onboarding status reset completed');
+      
+      // Show success message - AppNavigator will automatically route to Onboarding
       Alert.alert(
-        'Welcome to CommUnity!',
-        'Let\'s set up your profile first.',
+        'Account Created!',
+        'Welcome to CommUnity! Let\'s set up your profile.',
         [
           {
-            text: 'OK',
+            text: 'Continue',
             onPress: () => {
-              navigation.navigate('Onboarding' as any);
+              console.log('User acknowledged signup success');
+              // Don't navigate - AppNavigator will handle it automatically
             }
           }
         ]
       );
+      
+      // DO NOT set isOnboarded: true in Firestore here
+      // DO NOT navigate manually - AppNavigator will detect the new user and show Onboarding
+      // The user document will be created in OnboardingScreen with isOnboarded: false initially
+      // Then it will be set to true in OnboardingFlowScreen after completion
+      
     } catch (error: any) {
       console.error('Signup error:', error);
-      let errorMessage = 'An error occurred during signup';
       
-      // Handle specific Firebase auth errors
+      // Handle specific Firebase auth errors with user-friendly messages
+      let errorMessage = 'An error occurred during signup';
+      let showLoginLink = false;
+      
       switch (error.code) {
         case 'auth/email-already-in-use':
-          errorMessage = 'This email is already registered. Please try logging in instead.';
+          errorMessage = 'This email is already registered. Would you like to log in instead?';
+          showLoginLink = true;
           break;
         case 'auth/invalid-email':
           errorMessage = 'Please enter a valid email address.';
@@ -136,7 +153,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
           errorMessage = 'Network error. Please check your internet connection and try again.';
           break;
         case 'auth/too-many-requests':
-          errorMessage = 'Too many failed attempts. Please try again later.';
+          errorMessage = 'Too many failed attempts. Please wait a moment and try again.';
           break;
         case 'auth/user-disabled':
           errorMessage = 'This account has been disabled. Please contact support.';
@@ -144,11 +161,36 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
         case 'auth/operation-not-allowed':
           errorMessage = 'Email/password accounts are not enabled. Please contact support.';
           break;
+        case 'auth/email-already-exists':
+          errorMessage = 'This email is already registered. Would you like to log in instead?';
+          showLoginLink = true;
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Invalid credentials. Please check your email and password.';
+          break;
         default:
-          errorMessage = error.message || 'An error occurred during signup';
+          errorMessage = 'Something went wrong. Please try again or contact support if the issue persists.';
       }
       
-      Alert.alert('Signup Failed', errorMessage);
+      // Show error alert with optional login link
+      if (showLoginLink) {
+        Alert.alert(
+          'Email Already Registered',
+          errorMessage,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Log In',
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Signup Error', errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -324,7 +366,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Already have an account? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Auth', { screen: 'Login' })} disabled={isLoading} activeOpacity={0.7} style={styles.loginLinkButton}>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={isLoading} activeOpacity={0.7} style={styles.loginLinkButton}>
                   <Text style={styles.loginLink}>Sign In</Text>
                 </TouchableOpacity>
               </View>

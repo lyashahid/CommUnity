@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,15 @@ import {
   TouchableOpacity,
   FlatList,
   ViewToken,
+  Alert,
 } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '@/navigation/AppNavigator';
 import LottieView from 'lottie-react-native';
 import { setOnboardingComplete } from '@/utils/onboarding';
+import { doc, setDoc, db, auth } from '@/services/firebase';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -47,16 +51,19 @@ interface OnboardingScreenProps {
   onComplete?: () => void;
 }
 
-type OnboardingFlowRouteProp = RouteProp<{ OnboardingFlow: OnboardingScreenProps }, 'OnboardingFlow'>;
+type OnboardingFlowRouteProp = RouteProp<RootStackParamList, 'OnboardingFlow'>;
 
 export default function OnboardingScreen() {
   const { colors } = useTheme();
   const route = useRoute<OnboardingFlowRouteProp>();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { onComplete } = route.params || {};
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const completionAttempted = useRef(false); // Extra guard
 
-  console.log('OnboardingFlowScreen mounted with onComplete:', !!onComplete);
+  console.log('OnboardingFlowScreen mounted');
 
   const handleViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems[0]) {
@@ -69,35 +76,88 @@ export default function OnboardingScreen() {
   }).current;
 
   const handleNext = () => {
+    if (isCompleting) return; // Don't allow navigation while completing
+    
     if (currentIndex < onboardingData.length - 1) {
       flatListRef.current?.scrollToIndex({
         index: currentIndex + 1,
         animated: true,
       });
     } else {
-      handleComplete();
+      handleCompleteOnboarding();
     }
   };
 
   const handleSkip = () => {
-    handleComplete();
+    if (isCompleting) return;
+    handleCompleteOnboarding();
   };
 
-  const handleComplete = async () => {
+  const handleCompleteOnboarding = async () => {
+    // Prevent multiple completions with both state and ref
+    if (isCompleting || completionAttempted.current) {
+      console.log('Already completing onboarding, ignoring duplicate call');
+      return;
+    }
+    
+    completionAttempted.current = true;
+    setIsCompleting(true);
     console.log('Get Started button pressed - completing onboarding...');
+    
     try {
+      // Step 1: Save to AsyncStorage
       await setOnboardingComplete();
-      console.log('Onboarding status saved to AsyncStorage');
+      console.log('✓ Onboarding status saved to AsyncStorage');
       
-      if (onComplete) {
-        console.log('Calling onComplete callback...');
-        onComplete();
-      } else {
-        console.log('No onComplete callback provided');
+      // Step 2: Get current user
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser?.uid) {
+        console.error('No authenticated user found');
+        Alert.alert('Error', 'No user session found. Please log in again.');
+        setIsCompleting(false);
+        completionAttempted.current = false;
+        return;
       }
+      
+      // Step 3: Update Firestore
+      await setDoc(
+        doc(db, 'users', currentUser.uid), 
+        { isOnboarded: true }, 
+        { merge: true }
+      );
+      console.log('✓ Updated Firestore with onboarding completion');
+      
+      // Step 4: Call the onComplete callback if provided
+      if (onComplete) {
+        console.log('✓ Calling onComplete callback');
+        onComplete();
+      }
+      
+      // Step 5: Force navigation reset to trigger AppNavigator re-check
+      console.log('✓ Onboarding completed successfully');
+      console.log('⟳ AppNavigator should now detect completion and navigate to Feed');
+      
+      // The AppNavigator will automatically detect the change and navigate to the main app
+      // We don't need to manually navigate - just let the auth state listener handle it
+      
     } catch (error) {
       console.error('Error completing onboarding:', error);
+      Alert.alert(
+        'Error',
+        'Failed to complete onboarding. Please try again.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setIsCompleting(false);
+              completionAttempted.current = false;
+            }
+          }
+        ]
+      );
     }
+    // Don't reset isCompleting here - let the AppNavigator handle the navigation
   };
 
   const renderItem = ({ item, index }: { item: OnboardingItem; index: number }) => {
@@ -146,7 +206,7 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       {/* Skip Button */}
-      {currentIndex < onboardingData.length - 1 && (
+      {currentIndex < onboardingData.length - 1 && !isCompleting && (
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
           <Text style={[styles.skipText, { color: colors.text.secondary }]}>
             Skip
@@ -166,6 +226,7 @@ export default function OnboardingScreen() {
         onViewableItemsChanged={handleViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         bounces={false}
+        scrollEnabled={!isCompleting}
       />
 
       {/* Bottom Section */}
@@ -173,12 +234,22 @@ export default function OnboardingScreen() {
         {renderDots()}
 
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.primary }]}
+          style={[
+            styles.button, 
+            { backgroundColor: colors.primary },
+            isCompleting && styles.buttonDisabled
+          ]}
           onPress={handleNext}
           activeOpacity={0.8}
+          disabled={isCompleting}
         >
           <Text style={styles.buttonText}>
-            {currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Next'}
+            {isCompleting 
+              ? 'Completing...' 
+              : currentIndex === onboardingData.length - 1 
+                ? 'Get Started' 
+                : 'Next'
+            }
           </Text>
         </TouchableOpacity>
       </View>
@@ -264,6 +335,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: '#FFFFFF',

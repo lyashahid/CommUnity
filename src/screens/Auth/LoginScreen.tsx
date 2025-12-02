@@ -88,15 +88,20 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
     try {
       const userCredential = await signInWithEmailAndPassword(email.trim(), password);
       console.log('Logged in user:', userCredential.user.email);
+      console.log('User is logging in, treating as already onboarded');
       // Let AppNavigator handle the routing based on auth state
+      // Logged-in users go directly to main app (onboarding status = true)
     } catch (error: any) {
       console.error('Login error:', error);
-      let errorMessage = 'An error occurred during login';
       
-      // Handle specific Firebase auth errors
+      // Handle specific Firebase auth errors with user-friendly messages
+      let errorMessage = 'An error occurred during login';
+      let showSignupLink = false;
+      
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = 'No account found with this email. Please sign up first.';
+          errorMessage = 'No account found with this email. Would you like to sign up instead?';
+          showSignupLink = true;
           break;
         case 'auth/wrong-password':
           errorMessage = 'Incorrect password. Please try again or reset your password.';
@@ -108,7 +113,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
           errorMessage = 'This account has been disabled. Please contact support.';
           break;
         case 'auth/too-many-requests':
-          errorMessage = 'Too many failed login attempts. Please try again later.';
+          errorMessage = 'Too many failed login attempts. Please wait a moment and try again.';
           break;
         case 'auth/network-request-failed':
           errorMessage = 'Network error. Please check your internet connection and try again.';
@@ -116,11 +121,32 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         case 'auth/invalid-credential':
           errorMessage = 'Invalid email or password. Please check your credentials and try again.';
           break;
+        case 'auth/invalid-password':
+          errorMessage = 'Invalid password. Please check your password and try again.';
+          break;
         default:
-          errorMessage = error.message || 'An error occurred during login';
+          errorMessage = 'Something went wrong. Please try again or contact support if the issue persists.';
       }
       
-      Alert.alert('Login Failed', errorMessage);
+      // Show error alert with optional signup link
+      if (showSignupLink) {
+        Alert.alert(
+          'Account Not Found',
+          errorMessage,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Sign Up',
+              onPress: () => navigation.navigate('Auth' as any, { screen: 'Signup' })
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Login Failed', errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

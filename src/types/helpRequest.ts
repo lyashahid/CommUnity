@@ -109,6 +109,14 @@ export const isRequestAvailableForFeed = (request: HelpRequest, currentUserId?: 
     return false;
   }
   
+  // Don't show regular requests that have been accepted by other users
+  if (!request.isOfficialRequest && 
+      request.status === 'accepted' && 
+      request.helperId && 
+      request.helperId !== currentUserId) {
+    return false;
+  }
+  
   return true;
 };
 

@@ -9,6 +9,7 @@ import { doc, getDoc, onSnapshot, db } from '@/services/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import BeautifulLoadingScreen from '@/components/common/BeautifulLoadingScreen';
+import { hasSeenOnboarding } from '@/utils/onboarding';
 
 // Screens
 import FeedScreen from '../screens/Home/FeedScreen';
@@ -31,6 +32,22 @@ import ReviewsScreen from '../screens/Profile/ReviewsScreen';
 // ---------------------
 // Navigation Param Types
 // ---------------------
+type UserProfile = {
+  name: string;
+  email: string;
+  avatar?: string;
+  bio?: string;
+  skills: string[];
+  location?: string | { longitude: number; latitude: number; address: string };
+  joinDate: string;
+  level: number;
+  rating: number;
+  reviewCount: number;
+  completedRequests: number;
+  helpedPeople: number;
+  responseRate: number;
+};
+
 export type AuthStackParamList = {
   Login: undefined;
   Signup: undefined;
@@ -82,7 +99,10 @@ export type TabParamList = {
   Map: undefined;
   Create: undefined;
   Messages: undefined;
-  Profile: undefined;
+  Profile: {
+    updated?: boolean;
+    profile?: UserProfile;
+  };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -242,7 +262,7 @@ function LoadingScreen() {
   // Safety check - if colors is not available, use fallback
   if (!colors) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: '#F8F9FA' }]}>
+      <View style={[styles.loadingContainer, { backgroundColor: '#F8F9FF' }]}>
         <ActivityIndicator size="large" color="#5FA8D3" />
       </View>
     );
@@ -260,131 +280,118 @@ function LoadingScreen() {
 // ---------------------
 const AppNavigator = () => {
   const { user, isLoading: authLoading } = useAuth();
+  const { colors } = useTheme();
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
 
-  const checkOnboardingStatus = async (): Promise<boolean> => {
-    try {
-      console.log('Checking onboarding status...');
-      
-      if (!user?.uid) {
-        console.log('No user found, returning false');
-        return false;
-      }
-
-      // Check if user has completed profile in Firestore
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        console.log('User document does not exist, needs onboarding');
-        return false;
-      }
-
-      const userData = userSnap.data();
-      const hasOnboarded = userData?.isOnboarded === true;
-      console.log('User has completed onboarding:', hasOnboarded);
-      
-      return hasOnboarded;
-    } catch (err: any) {
-      console.error('Onboarding check error:', err);
-      return false;
-    }
-  };
-
-  // Function to manually refresh onboarding status
-  const refreshOnboardingStatus = useCallback(async () => {
-    if (user?.uid) {
-      const onboarded = await checkOnboardingStatus();
-      setIsOnboarded(onboarded);
-    }
-  }, [user?.uid]);
-
+  // Real-time listener for onboarding status changes
   useEffect(() => {
-    let isMounted = true;
-    
-    const runCheck = async () => {
-      console.log('Running onboarding check. User:', user?.uid);
-      
-      if (!user?.uid) {
-        if (isMounted) {
-          setIsOnboarded(false);
-          setIsCheckingOnboarding(false);
-        }
-        return;
-      }
+    if (!user?.uid) {
+      console.log('No user, setting onboarded to false');
+      setIsOnboarded(false);
+      setIsCheckingOnboarding(false);
+      return;
+    }
 
-      setIsCheckingOnboarding(true);
-      
+    console.log('Setting up real-time listener for user:', user.uid);
+    setIsCheckingOnboarding(true);
+
+    // First, check AsyncStorage immediately
+    const checkInitialStatus = async () => {
       try {
-        const hasOnboarded = await checkOnboardingStatus();
-        if (isMounted) {
-          setIsOnboarded(hasOnboarded);
-        }
-      } catch (error) {
-        console.error('Error checking onboarding:', error);
-        if (isMounted) {
-          setIsOnboarded(false);
-        }
-      } finally {
-        if (isMounted) {
+        const hasSeenFlow = await hasSeenOnboarding();
+        console.log('Initial AsyncStorage check:', hasSeenFlow);
+        
+        if (hasSeenFlow === true) {
+          console.log('User has completed onboarding (AsyncStorage)');
+          setIsOnboarded(true);
           setIsCheckingOnboarding(false);
+          return true;
         }
+        return false;
+      } catch (err) {
+        console.error('Error checking AsyncStorage:', err);
+        return false;
       }
     };
 
-    runCheck();
-    
+    // Set up real-time Firestore listener
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      async (docSnapshot) => {
+        console.log('Firestore snapshot received');
+        
+        if (!docSnapshot.exists()) {
+          console.log('User document does not exist');
+          // Check AsyncStorage as fallback
+          const hasSeenFlow = await hasSeenOnboarding();
+          setIsOnboarded(hasSeenFlow === true);
+          setIsCheckingOnboarding(false);
+          return;
+        }
+
+        const userData = docSnapshot.data();
+        const firestoreOnboarded = userData?.isOnboarded === true;
+        console.log('Firestore isOnboarded:', firestoreOnboarded);
+
+        // Also check AsyncStorage
+        const asyncStorageOnboarded = await hasSeenOnboarding();
+        console.log('AsyncStorage onboarded:', asyncStorageOnboarded);
+
+        // User is onboarded if EITHER source says true
+        const finalOnboarded = firestoreOnboarded || asyncStorageOnboarded === true;
+        console.log('Final onboarding status:', finalOnboarded);
+        
+        setIsOnboarded(finalOnboarded);
+        setIsCheckingOnboarding(false);
+      },
+      (error) => {
+        console.error('Error listening to user document:', error);
+        // On error, check AsyncStorage
+        checkInitialStatus().then(() => {
+          setIsCheckingOnboarding(false);
+        });
+      }
+    );
+
+    // Check initial status
+    checkInitialStatus();
+
     return () => {
-      isMounted = false;
+      console.log('Cleaning up Firestore listener');
+      unsubscribe();
     };
-  }, [user?.uid]); // Only re-run when user UID changes, not the entire user object
+  }, [user?.uid]);
 
   // Show loading screen while checking auth OR onboarding status
   if (authLoading || isCheckingOnboarding) {
+    console.log('Showing loading screen - authLoading:', authLoading, 'isCheckingOnboarding:', isCheckingOnboarding);
     return <LoadingScreen />;
   }
 
-  console.log('Navigation state - User:', !!user, 'Onboarded:', isOnboarded);
+  console.log('Navigation Decision - User:', !!user, 'Onboarded:', isOnboarded);
 
   return (
     <NavigationContainer>
       {!user ? (
         // Auth Stack (when not logged in)
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false }} id="auth-stack">
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="Auth" component={AuthStackScreen} />
-          <Stack.Screen 
-            name="OnboardingFlow" 
-            component={OnboardingFlowScreen} 
-            initialParams={{ 
-              onComplete: () => {
-                // After onboarding flow, check if user needs to complete profile
-                checkOnboardingStatus().then(hasOnboarded => {
-                  setIsOnboarded(hasOnboarded);
-                });
-              }
-            }}
-          />
         </Stack.Navigator>
       ) : !isOnboarded ? (
-        // Onboarding Stack (when logged in but not onboarded - needs data collection)
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        // Onboarding Stack (when logged in but not onboarded)
+        <Stack.Navigator screenOptions={{ headerShown: false }} id="onboarding-stack">
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           <Stack.Screen 
             name="OnboardingFlow" 
-            component={OnboardingFlowScreen} 
-            initialParams={{ 
-              onComplete: () => {
-                // After instruction slides, go to main app
-                setIsOnboarded(true);
-              }
-            }}
+            component={OnboardingFlowScreen}
           />
         </Stack.Navigator>
       ) : (
         // Main App Stack (when logged in and onboarded)
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false }} id="main-stack">
           <Stack.Screen name="App" component={TabNavigator} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />

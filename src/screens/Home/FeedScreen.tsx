@@ -28,6 +28,7 @@ import {
   where // Added missing import
 } from '@/services/firebase';
 import * as Location from 'expo-location';
+import { signOut } from '@/services/firebase';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -70,6 +71,15 @@ const FeedScreen = () => {
       duration: 500,
       useNativeDriver: true,
     }).start();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      Alert.alert('Error', 'Failed to sign out');
+    }
   };
 
   const getUserLocation = async () => {
@@ -130,13 +140,20 @@ const FeedScreen = () => {
       
       const filteredPosts = posts.filter(post => {
         // Debug: Log the status and filtering result
-        const isAvailable = isRequestAvailableForFeed(post as HelpRequest, auth.currentUser?.uid);
+        // Use RequestCardItem properties for filtering
+        const isOwnRequest = post.ownerUid === auth.currentUser?.uid;
+        const isActiveRequest = post.status && !['completed', 'cancelled', 'rejected', 'closed', 'inactive', 'done', 'accepted'].includes(post.status);
+        const isAlreadyHelper = post.helperUid === auth.currentUser?.uid;
+        
+        // Don't show user's own requests or inactive requests
+        const isAvailable = !isOwnRequest && isActiveRequest && !isAlreadyHelper;
+        
         console.log(`Post ${post.id}: status="${post.status}", available=${isAvailable}, title="${post.title}"`);
         
         // Additional manual filtering for safety
-        const inactiveStatuses = ['completed', 'cancelled', 'rejected', 'closed', 'inactive', 'done'];
-        const manuallyFiltered = !inactiveStatuses.includes(post.status) && 
-                                post.requesterId !== auth.currentUser?.uid;
+        const inactiveStatuses = ['completed', 'cancelled', 'rejected', 'closed', 'inactive', 'done', 'accepted'];
+        const manuallyFiltered = !inactiveStatuses.includes(post.status || '') && 
+                                post.ownerUid !== auth.currentUser?.uid;
         
         // Use both the helper function and manual filtering
         return isAvailable && manuallyFiltered;
@@ -272,6 +289,16 @@ const FeedScreen = () => {
         // 3. The Hero goes here. It scrolls with the list naturally.
         ListHeaderComponent={
           <View style={{ marginBottom: 0 }}>
+            {/* Temporary logout button */}
+            <View style={{ alignItems: 'flex-end', padding: 16, paddingTop: 50 }}>
+              <TouchableOpacity 
+                style={[styles.tempLogoutButton, { backgroundColor: colors.surface.card }]} 
+                onPress={handleLogout}
+              >
+                <Ionicons name="log-out" size={16} color={colors.text.secondary} />
+                <Text style={[styles.tempLogoutText, { color: colors.text.secondary }]}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
              <HeroSection 
                stats={stats}
                onRequestHelp={() => tabNavigation.navigate('Create')}
@@ -316,6 +343,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 3,
+  },
+  tempLogoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  tempLogoutText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   emptyState: {
     alignItems: 'center',
