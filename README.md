@@ -28,24 +28,15 @@ The app features a comprehensive help request system with real-time chat, locati
    npm install
    ```
 
-3. **Configure environment variables**
-   - Copy `.env.example` to `.env` (if available)
-   - Add your Firebase configuration details
 
-4. **Start the development server with expo**
+3. **Start the development server with expo**
    ```bash
    npx expo start
    ```
 
-5. **Run on device/simulator**
+4. **Run on device/simulator**
    - Download Expo Go app on your mobile device
    - Scan the QR code from the terminal
-   - Or run on simulator: `expo start --ios` or `expo start --android`
-
-### Database Setup
-```bash
-npm run setup-db
-```
 
 
 ## Feature List
@@ -90,7 +81,6 @@ npm run setup-db
 - **Beautiful UI**: Modern, intuitive interface with smooth animations
 - **Push Notifications**: Real-time updates for request status changes
 
-
 ## Screenshots
 
 ### Main Screens
@@ -134,8 +124,6 @@ npm run setup-db
 - Category selection
 - Urgency levels
 - Location picker
-- Duration estimation
-
 
 ## Technologies Used
 
@@ -186,15 +174,6 @@ npm run setup-db
 - **Network Connectivity**: Real-time features require stable internet connection
 - **iOS Simulator**: Some features like camera may not work in simulator
 
-### Future Improvements
-
-#### **Enhanced Features**
-- **Push Notification System**: Complete notification implementation
-- **Advanced Filtering**: More granular filtering options for requests
-- **Offline Mode**: Basic functionality without internet connection
-- **Voice Messages**: Audio messaging in chat
-- **Video Calling**: Direct video communication between users
-
 #### **UI/UX Improvements**
 - **Dark Mode**: Support for system dark mode
 - **Custom Themes**: Personalized color schemes
@@ -224,3 +203,68 @@ npm run setup-db
 - **Events**: Community help events and meetups
 
 
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="./assets/screenshots/login.png" width="260" />
+      <br/>
+      <strong>Login</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/signup.png" width="260" />
+      <br/>
+      <strong>Signup</strong>
+    </td>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/feed.png" width="260" />
+      <br/>
+      <strong>Home Feed</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/onboarding.png" width="260" />
+      <br/>
+      <strong>Onboarding</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/onboarding.png" width="260" />
+      <br/>
+      <strong>Onboarding</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/instructions.png" width="260" />
+      <br/>
+      <strong>Instructions</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="./assets/screenshots/chat.png" width="260" />
+      <br />
+      <strong>Chat</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/profile.png" width="260" />
+      <br />
+      <strong>Profile</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/details.png" width="260" />
+      <br/>
+      <strong>Request Details</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/map.png" width="260" />
+      <br/>
+      <strong>Map View</strong>
+    </td>
+    <td align="center">
+      <img src="./assets/screenshots/darkmode.png" width="260" />
+      <br/>
+      <strong>Dark Mode</strong>
+    </td>
+  </tr>
+</table>
