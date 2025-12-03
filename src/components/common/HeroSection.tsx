@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { typography } from '../../theme/typography';
 import { StatsCard } from './StatsCard';
+import { InstructionModal } from './InstructionModal';
 
 interface HeroSectionProps {
   stats: {
@@ -24,41 +25,54 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const [showInstructions, setShowInstructions] = useState(false);
 
   return (
-    <LinearGradient
-      colors={colors.gradient.primary as [string, string]}
-      style={styles.container}
-    >
-      <View style={[styles.content, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.greeting, { color: 'rgba(255,255,255,0.8)' }]}>Welcome back!</Text>
-            <Text style={[styles.title, { color: colors.text.inverse }]}>Ready to help your community?</Text>
+    <>
+      <LinearGradient
+        colors={colors.gradient.primary as [string, string]}
+        style={styles.container}
+      >
+        <View style={[styles.content, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.header}>
+            <View>
+              <Text style={[styles.greeting, { color: 'rgba(255,255,255,0.8)' }]}>Welcome back!</Text>
+              <Text style={[styles.title, { color: colors.text.inverse }]}>Ready to help your community?</Text>
+            </View>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={() => setShowInstructions(true)}
+              >
+                <Ionicons name="help-circle-outline" size={24} color={colors.text.inverse} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={24} color={colors.text.inverse} />
-          </TouchableOpacity>
-        </View>
-        
-        <StatsCard stats={stats} />
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity 
-            style={[styles.primaryAction, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
-            onPress={onRequestHelp}
-          >
-            <Ionicons name="add" size={20} color={colors.text.inverse} />
-            <Text style={[styles.primaryActionText, { color: colors.text.inverse }]}>Request Help</Text>
-          </TouchableOpacity>
           
-          <TouchableOpacity style={[styles.secondaryAction, { backgroundColor: 'rgba(255,255,255,0.1)' }]} onPress={onViewMap}>
-            <Ionicons name="map-outline" size={20} color={colors.text.inverse} />
-            <Text style={[styles.secondaryActionText, { color: colors.text.inverse }]}>View Map</Text>
-          </TouchableOpacity>
+          <StatsCard stats={stats} />
+
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={[styles.primaryAction, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+              onPress={onRequestHelp}
+            >
+              <Ionicons name="add" size={20} color={colors.text.inverse} />
+              <Text style={[styles.primaryActionText, { color: colors.text.inverse }]}>Request Help</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={[styles.secondaryAction, { backgroundColor: 'rgba(255,255,255,0.1)' }]} onPress={onViewMap}>
+              <Ionicons name="map-outline" size={20} color={colors.text.inverse} />
+              <Text style={[styles.secondaryActionText, { color: colors.text.inverse }]}>View Map</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </LinearGradient>
+      </LinearGradient>
+      
+      <InstructionModal 
+        visible={showInstructions}
+        onClose={() => setShowInstructions(false)}
+      />
+    </>
   );
 };
 
@@ -74,7 +88,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
     marginBottom: 8,
   },
@@ -90,6 +104,11 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  buttonContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   actionRow: {
     flexDirection: 'row',

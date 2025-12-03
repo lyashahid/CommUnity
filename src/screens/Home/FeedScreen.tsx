@@ -139,8 +139,25 @@ const FeedScreen = () => {
       });
       
       const filteredPosts = posts.filter(post => {
-        // Use the proper helper function for filtering
-        return isRequestAvailableForFeed(post as HelpRequest, auth.currentUser?.uid);
+        // Create a HelpRequest object with the required properties
+        const helpRequest: HelpRequest = {
+          id: post.id,
+          title: post.title,
+          description: post.description || '',
+          category: post.category,
+          urgency: post.urgency || 'medium',
+          location: post.distanceKm ? `${post.distanceKm} km away` : 'Unknown location',
+          type: post.type || 'feed_request',
+          status: post.status || 'open',
+          requesterId: post.ownerUid || '',
+          requesterName: post.ownerName || 'Anonymous',
+          helperId: post.helperUid,
+          createdAt: post.createdAt,
+          helpOffers: 0, // Default value
+          isOfficialRequest: post.isOfficialRequest || false,
+        };
+        
+        return isRequestAvailableForFeed(helpRequest, auth.currentUser?.uid);
       });
       
       setData(filteredPosts);
@@ -273,16 +290,6 @@ const FeedScreen = () => {
         // 3. The Hero goes here. It scrolls with the list naturally.
         ListHeaderComponent={
           <View style={{ marginBottom: 0 }}>
-            {/* Temporary logout button */}
-            <View style={{ alignItems: 'flex-end', padding: 16, paddingTop: 50 }}>
-              <TouchableOpacity 
-                style={[styles.tempLogoutButton, { backgroundColor: colors.surface.card }]} 
-                onPress={handleLogout}
-              >
-                <Ionicons name="log-out" size={16} color={colors.text.secondary} />
-                <Text style={[styles.tempLogoutText, { color: colors.text.secondary }]}>Log Out</Text>
-              </TouchableOpacity>
-            </View>
              <HeroSection 
                stats={stats}
                onRequestHelp={() => tabNavigation.navigate('Create')}
