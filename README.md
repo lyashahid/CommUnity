@@ -206,6 +206,8 @@ The app features a comprehensive help request system with real-time chat, locati
 
 ## Screenshots
 
+## Screenshots
+
 <table>
   <tr>
     <td align="center">
@@ -223,6 +225,8 @@ The app features a comprehensive help request system with real-time chat, locati
       <br/>
       <strong>Home Feed</strong>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <img src="./assets/screenshots/onboarding.png" width="260" />
       <br/>
@@ -234,20 +238,15 @@ The app features a comprehensive help request system with real-time chat, locati
       <strong>Instructions</strong>
     </td>
     <td align="center">
-      <img src="./assets/screenshots/instructions.png" width="260" />
+      <img src="./assets/screenshots/chat.png" width="260" />
       <br/>
-      <strong>Instructions</strong>
+      <strong>Chat</strong>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="./assets/screenshots/chat.png" width="260" />
-      <br />
-      <strong>Chat</strong>
-    </td>
-    <td align="center">
       <img src="./assets/screenshots/profile.png" width="260" />
-      <br />
+      <br/>
       <strong>Profile</strong>
     </td>
     <td align="center">
@@ -259,11 +258,6 @@ The app features a comprehensive help request system with real-time chat, locati
       <img src="./assets/screenshots/map.png" width="260" />
       <br/>
       <strong>Map View</strong>
-    </td>
-    <td align="center">
-      <img src="./assets/screenshots/darkmode.png" width="260" />
-      <br/>
-      <strong>Dark Mode</strong>
     </td>
   </tr>
 </table>
