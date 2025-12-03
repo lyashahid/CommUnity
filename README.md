@@ -261,7 +261,7 @@ The app features a comprehensive help request system with real-time chat, locati
       <strong>Map View</strong>
     </td>
     <td align="center">
-      <img src="./community-assist-app/assets/screenshots/darkmode.PNG" width="260" />
+      <img src="./community-assist-app/assets/screenshots/darkmode.png" width="260" />
       <br/>
       <strong>Dark Mode</strong>
     </td>
