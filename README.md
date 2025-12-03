@@ -209,59 +209,59 @@ The app features a comprehensive help request system with real-time chat, locati
 <table>
   <tr>
     <td align="center">
-      <img src="assets/screenshots/login.png" width="260" />
+      <img src="./assets/screenshots/login.png" width="260" />
       <br/>
       <strong>Login</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/signup.png" width="260" />
+      <img src="./assets/screenshots/signup.png" width="260" />
       <br/>
       <strong>Signup</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/feed.png" width="260" />
+      <img src="./assets/screenshots/feed.png" width="260" />
       <br/>
       <strong>Home Feed</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/onboarding.png" width="260" />
+      <img src="./assets/screenshots/onboarding.png" width="260" />
       <br/>
       <strong>Onboarding</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/instructions.png" width="260" />
+      <img src="./assets/screenshots/instructions.png" width="260" />
       <br/>
       <strong>Instructions</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/instructions.png" width="260" />
+      <img src="./assets/screenshots/instructions.png" width="260" />
       <br/>
       <strong>Instructions</strong>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="assets/screenshots/chat.png" width="260" />
+      <img src="./assets/screenshots/chat.png" width="260" />
       <br />
       <strong>Chat</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/profile.png" width="260" />
+      <img src="./assets/screenshots/profile.png" width="260" />
       <br />
       <strong>Profile</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/details.png" width="260" />
+      <img src="./assets/screenshots/details.png" width="260" />
       <br/>
       <strong>Request Details</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/map.png" width="260" />
+      <img src="./assets/screenshots/map.png" width="260" />
       <br/>
       <strong>Map View</strong>
     </td>
     <td align="center">
-      <img src="assets/screenshots/darkmode.png" width="260" />
+      <img src="./assets/screenshots/darkmode.png" width="260" />
       <br/>
       <strong>Dark Mode</strong>
     </td>
